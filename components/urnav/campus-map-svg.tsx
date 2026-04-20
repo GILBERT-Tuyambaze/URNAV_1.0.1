@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import {
   ALL_BUILDINGS,
   EXTERNAL_BUILDINGS,
@@ -12,7 +12,6 @@ import {
   KCEV_BOUNDARY,
   SPORTS_GROUND,
   getBuildingColors,
-  getRoomColors,
   type CampusBuilding,
   type CampusRoom,
 } from "@/lib/campus-data";
@@ -20,7 +19,6 @@ import {
   toScreen,
   fitCampus,
   MAP_REAL_WIDTH,
-  MAP_REAL_HEIGHT,
   type ViewState,
 } from "@/lib/map-transform";
 import { demoController, type DemoState, type Position } from "@/lib/demo-controller";
@@ -45,41 +43,49 @@ interface CampusMapSVGProps {
   onZoomChange?: (zoom: number) => void;
 }
 
-// Scale bounds
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 12;
 
-// Zoom level thresholds
-const ZOOM_LEVEL = {
-  OVERVIEW: 0.8,
-  CAMPUS: 1.2,
-  DISTRICT: 2.5,
-  BUILDING: 4.5,
-  ROOM: 7,
+// Room colors by type
+const ROOM_COLORS: Record<string, { fill: string; stroke: string }> = {
+  lecture: { fill: "#E8F4FF", stroke: "#0066CC" },
+  lab: { fill: "#E8FFF0", stroke: "#00883A" },
+  office: { fill: "#FFF8E8", stroke: "#F5A800" },
+  restroom: { fill: "#F0F0F5", stroke: "#666680" },
+  storage: { fill: "#F5F5F5", stroke: "#999999" },
+  corridor: { fill: "#FAFAFA", stroke: "#CCCCCC" },
+  stairs: { fill: "#FFE8F0", stroke: "#CC0066" },
+  default: { fill: "#F8F8FC", stroke: "#AAAACC" },
 };
 
-export function CampusMapSVG({
-  width,
-  height,
-  selectedBuilding,
-  destinationBuilding,
-  onBuildingSelect,
-  onRoomSelect,
-  showRoute = false,
-  routeNodes = [],
-  userPosition,
-  isDemoMode = false,
-  showTrail = true,
-  showWifiDot = false,
-  showKalmanDot = false,
-  showPathNodes = false,
-  showPathEdges = false,
-  animationSpeed = 1,
-  onZoomChange,
-}: CampusMapSVGProps) {
+export const CampusMapSVG = forwardRef<
+  { zoomIn: () => void; zoomOut: () => void; resetView: () => void; centerOnUser: () => void },
+  CampusMapSVGProps
+>(function CampusMapSVG(
+  {
+    width,
+    height,
+    selectedBuilding,
+    destinationBuilding,
+    onBuildingSelect,
+    onRoomSelect,
+    showRoute = false,
+    routeNodes = [],
+    userPosition,
+    isDemoMode = false,
+    showTrail = true,
+    showWifiDot = false,
+    showKalmanDot = false,
+    showPathNodes = false,
+    showPathEdges = false,
+    animationSpeed = 1.5,
+    onZoomChange,
+  },
+  ref
+) {
   const svgRef = useRef<SVGSVGElement>(null);
-  
-  // Initialize view state
+
+  // Initialize with fit campus view
   const getInitialView = useCallback((): ViewState => {
     const fit = fitCampus(width, height, 20);
     return {
@@ -95,9 +101,9 @@ export function CampusMapSVG({
   const [demoState, setDemoState] = useState<DemoState | null>(null);
   const [marchingOffset, setMarchingOffset] = useState(0);
   const [pulseScale, setPulseScale] = useState(1);
-  const [hoveredBuilding, setHoveredBuilding] = useState<string | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
 
-  // Gesture state
+  // Touch gesture state
   const gestureRef = useRef({
     isPanning: false,
     isPinching: false,
@@ -117,21 +123,6 @@ export function CampusMapSVG({
     momentumId: null as number | null,
   });
 
-  // Compute zoom level category
-  const zoomLevel = useMemo(() => {
-    if (view.scale < ZOOM_LEVEL.OVERVIEW) return 0;
-    if (view.scale < ZOOM_LEVEL.CAMPUS) return 1;
-    if (view.scale < ZOOM_LEVEL.DISTRICT) return 2;
-    if (view.scale < ZOOM_LEVEL.BUILDING) return 3;
-    if (view.scale < ZOOM_LEVEL.ROOM) return 4;
-    return 5;
-  }, [view.scale]);
-
-  // Notify zoom changes
-  useEffect(() => {
-    onZoomChange?.(view.scale);
-  }, [view.scale, onZoomChange]);
-
   // Subscribe to demo controller
   useEffect(() => {
     if (isDemoMode) {
@@ -144,16 +135,16 @@ export function CampusMapSVG({
   useEffect(() => {
     if (!showRoute || routeNodes.length < 2) return;
     const interval = setInterval(() => {
-      setMarchingOffset((prev) => (prev - animationSpeed) % 24);
-    }, 35);
+      setMarchingOffset((prev) => (prev - 1) % 20);
+    }, Math.max(20, 50 / animationSpeed));
     return () => clearInterval(interval);
   }, [showRoute, routeNodes.length, animationSpeed]);
 
   // Pulse animation
   useEffect(() => {
     const interval = setInterval(() => {
-      setPulseScale((prev) => (prev === 1 ? 1.5 : 1));
-    }, 1000);
+      setPulseScale((prev) => (prev === 1 ? 1.4 : 1));
+    }, 1200);
     return () => clearInterval(interval);
   }, []);
 
@@ -161,45 +152,61 @@ export function CampusMapSVG({
   useEffect(() => {
     setView((prev) => {
       const fit = fitCampus(width, height, 20);
+      const shouldReset =
+        Math.abs(prev.screenW - width) > 50 || Math.abs(prev.screenH - height) > 50;
       return {
         ...prev,
         screenW: width,
         screenH: height,
-        ...(Math.abs(prev.screenW - width) > 50 || Math.abs(prev.screenH - height) > 50
-          ? { scale: fit.scale, panX: fit.panX, panY: fit.panY }
-          : {}),
+        ...(shouldReset ? { scale: fit.scale, panX: fit.panX, panY: fit.panY } : {}),
       };
     });
   }, [width, height]);
 
-  // Coordinate transform helpers
+  // Notify zoom changes
+  useEffect(() => {
+    onZoomChange?.(view.scale);
+  }, [view.scale, onZoomChange]);
+
+  // Convert campus coords to screen
   const ts = useCallback(
     (mx: number, my: number) => toScreen(mx, my, view),
     [view]
   );
 
+  // Scale value
   const scaleValue = useCallback(
     (metres: number) => (metres * view.screenW * view.scale) / MAP_REAL_WIDTH,
     [view]
   );
 
   // Zoom functions
-  const zoomTo = useCallback((newScale: number, centerX?: number, centerY?: number) => {
-    const cx = centerX ?? width / 2;
-    const cy = centerY ?? height / 2;
-    const clampedScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
-    const scaleRatio = clampedScale / view.scale;
+  const zoomIn = useCallback(() => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const newScale = Math.min(MAX_SCALE, view.scale * 1.4);
+    const scaleRatio = newScale / view.scale;
     setView((prev) => ({
       ...prev,
-      scale: clampedScale,
-      panX: cx - (cx - prev.panX) * scaleRatio,
-      panY: cy - (cy - prev.panY) * scaleRatio,
+      scale: newScale,
+      panX: centerX - (centerX - prev.panX) * scaleRatio,
+      panY: centerY - (centerY - prev.panY) * scaleRatio,
     }));
   }, [view.scale, width, height]);
 
-  const zoomIn = useCallback(() => zoomTo(view.scale * 1.4), [zoomTo, view.scale]);
-  const zoomOut = useCallback(() => zoomTo(view.scale / 1.4), [zoomTo, view.scale]);
-  
+  const zoomOut = useCallback(() => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const newScale = Math.max(MIN_SCALE, view.scale / 1.4);
+    const scaleRatio = newScale / view.scale;
+    setView((prev) => ({
+      ...prev,
+      scale: newScale,
+      panX: centerX - (centerX - prev.panX) * scaleRatio,
+      panY: centerY - (centerY - prev.panY) * scaleRatio,
+    }));
+  }, [view.scale, width, height]);
+
   const resetView = useCallback(() => {
     const fit = fitCampus(width, height, 20);
     setView((prev) => ({
@@ -210,42 +217,64 @@ export function CampusMapSVG({
     }));
   }, [width, height]);
 
-  // Touch handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    const gesture = gestureRef.current;
-    
-    if (gesture.momentumId) {
-      cancelAnimationFrame(gesture.momentumId);
-      gesture.momentumId = null;
-    }
+  const centerOnUser = useCallback(() => {
+    const pos = isDemoMode && demoState ? demoState.truePos : userPosition;
+    if (!pos) return;
+    const screenPos = ts(pos.x, pos.y);
+    setView((prev) => ({
+      ...prev,
+      panX: prev.panX + width / 2 - screenPos.sx,
+      panY: prev.panY + height / 2 - screenPos.sy,
+    }));
+  }, [isDemoMode, demoState, userPosition, ts, width, height]);
 
-    if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      gesture.isPanning = true;
-      gesture.isPinching = false;
-      gesture.startPanX = touch.clientX;
-      gesture.startPanY = touch.clientY;
-      gesture.startViewPanX = view.panX;
-      gesture.startViewPanY = view.panY;
-      gesture.lastPanX = touch.clientX;
-      gesture.lastPanY = touch.clientY;
-      gesture.lastPanTime = Date.now();
-      gesture.velocityX = 0;
-      gesture.velocityY = 0;
-    } else if (e.touches.length === 2) {
-      gesture.isPanning = false;
-      gesture.isPinching = true;
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      gesture.startDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      gesture.startScale = view.scale;
-      gesture.startMidX = (t1.clientX + t2.clientX) / 2;
-      gesture.startMidY = (t1.clientY + t2.clientY) / 2;
-      gesture.startViewPanX = view.panX;
-      gesture.startViewPanY = view.panY;
-    }
-  }, [view.panX, view.panY, view.scale]);
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    zoomIn,
+    zoomOut,
+    resetView,
+    centerOnUser,
+  }));
+
+  // Touch handlers for pan and pinch-to-zoom
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      const gesture = gestureRef.current;
+
+      if (gesture.momentumId) {
+        cancelAnimationFrame(gesture.momentumId);
+        gesture.momentumId = null;
+      }
+
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        gesture.isPanning = true;
+        gesture.isPinching = false;
+        gesture.startPanX = touch.clientX;
+        gesture.startPanY = touch.clientY;
+        gesture.startViewPanX = view.panX;
+        gesture.startViewPanY = view.panY;
+        gesture.lastPanX = touch.clientX;
+        gesture.lastPanY = touch.clientY;
+        gesture.lastPanTime = Date.now();
+        gesture.velocityX = 0;
+        gesture.velocityY = 0;
+      } else if (e.touches.length === 2) {
+        gesture.isPanning = false;
+        gesture.isPinching = true;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        gesture.startDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        gesture.startScale = view.scale;
+        gesture.startMidX = (t1.clientX + t2.clientX) / 2;
+        gesture.startMidY = (t1.clientY + t2.clientY) / 2;
+        gesture.startViewPanX = view.panX;
+        gesture.startViewPanY = view.panY;
+      }
+    },
+    [view.panX, view.panY, view.scale]
+  );
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -255,12 +284,12 @@ export function CampusMapSVG({
       const touch = e.touches[0];
       const dx = touch.clientX - gesture.startPanX;
       const dy = touch.clientY - gesture.startPanY;
-      
+
       const now = Date.now();
       const dt = now - gesture.lastPanTime;
       if (dt > 0) {
-        gesture.velocityX = (touch.clientX - gesture.lastPanX) / dt * 16;
-        gesture.velocityY = (touch.clientY - gesture.lastPanY) / dt * 16;
+        gesture.velocityX = ((touch.clientX - gesture.lastPanX) / dt) * 16;
+        gesture.velocityY = ((touch.clientY - gesture.lastPanY) / dt) * 16;
       }
       gesture.lastPanX = touch.clientX;
       gesture.lastPanY = touch.clientY;
@@ -294,10 +323,10 @@ export function CampusMapSVG({
     }
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback(() => {
     const gesture = gestureRef.current;
 
-    if (gesture.isPanning && e.touches.length === 0) {
+    if (gesture.isPanning) {
       const applyMomentum = () => {
         gesture.velocityX *= 0.92;
         gesture.velocityY *= 0.92;
@@ -323,21 +352,24 @@ export function CampusMapSVG({
     gesture.isPinching = false;
   }, []);
 
-  // Mouse handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    const gesture = gestureRef.current;
-    
-    if (gesture.momentumId) {
-      cancelAnimationFrame(gesture.momentumId);
-      gesture.momentumId = null;
-    }
+  // Mouse handlers for desktop
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      const gesture = gestureRef.current;
 
-    gesture.isPanning = true;
-    gesture.startPanX = e.clientX;
-    gesture.startPanY = e.clientY;
-    gesture.startViewPanX = view.panX;
-    gesture.startViewPanY = view.panY;
-  }, [view.panX, view.panY]);
+      if (gesture.momentumId) {
+        cancelAnimationFrame(gesture.momentumId);
+        gesture.momentumId = null;
+      }
+
+      gesture.isPanning = true;
+      gesture.startPanX = e.clientX;
+      gesture.startPanY = e.clientY;
+      gesture.startViewPanX = view.panX;
+      gesture.startViewPanY = view.panY;
+    },
+    [view.panX, view.panY]
+  );
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const gesture = gestureRef.current;
@@ -357,99 +389,97 @@ export function CampusMapSVG({
     gestureRef.current.isPanning = false;
   }, []);
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
+  // Mouse wheel for zoom
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
-    const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
-    zoomTo(view.scale * zoomFactor, mouseX, mouseY);
-  }, [view.scale, zoomTo]);
+      const zoomFactor = e.deltaY > 0 ? 0.85 : 1.15;
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale * zoomFactor));
 
-  // Double click to zoom
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
+      const scaleRatio = newScale / view.scale;
+      const newPanX = mouseX - (mouseX - view.panX) * scaleRatio;
+      const newPanY = mouseY - (mouseY - view.panY) * scaleRatio;
 
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+      setView((prev) => ({
+        ...prev,
+        scale: newScale,
+        panX: newPanX,
+        panY: newPanY,
+      }));
+    },
+    [view.scale, view.panX, view.panY]
+  );
 
-    if (view.scale > 3) {
-      resetView();
-    } else {
-      zoomTo(view.scale * 2.5, clickX, clickY);
-    }
-  }, [view.scale, zoomTo, resetView]);
+  // Double tap/click to zoom
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-  // Handle building click
-  const handleBuildingClick = useCallback((e: React.MouseEvent, building: CampusBuilding) => {
-    e.stopPropagation();
-    onBuildingSelect?.(building);
-  }, [onBuildingSelect]);
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
 
-  // Handle room click
-  const handleRoomClick = useCallback((e: React.MouseEvent, room: CampusRoom, building: CampusBuilding) => {
-    e.stopPropagation();
-    onRoomSelect?.(room, building);
-  }, [onRoomSelect]);
+      if (view.scale > 3) {
+        const fit = fitCampus(width, height, 20);
+        setView((prev) => ({
+          ...prev,
+          scale: fit.scale,
+          panX: fit.panX,
+          panY: fit.panY,
+        }));
+      } else {
+        const newScale = Math.min(MAX_SCALE, view.scale * 2.5);
+        const scaleRatio = newScale / view.scale;
+        const newPanX = clickX - (clickX - view.panX) * scaleRatio;
+        const newPanY = clickY - (clickY - view.panY) * scaleRatio;
 
-  // Get current position
+        setView((prev) => ({
+          ...prev,
+          scale: newScale,
+          panX: newPanX,
+          panY: newPanY,
+        }));
+      }
+    },
+    [view.scale, view.panX, view.panY, width, height]
+  );
+
+  // Handle building tap
+  const handleBuildingClick = useCallback(
+    (e: React.MouseEvent, building: CampusBuilding) => {
+      e.stopPropagation();
+      onBuildingSelect?.(building);
+    },
+    [onBuildingSelect]
+  );
+
+  // Handle room tap
+  const handleRoomClick = useCallback(
+    (e: React.MouseEvent, room: CampusRoom, building: CampusBuilding) => {
+      e.stopPropagation();
+      setSelectedRoom(room.id);
+      onRoomSelect?.(room, building);
+    },
+    [onRoomSelect]
+  );
+
+  // Current position for rendering
   const currentPos = isDemoMode && demoState ? demoState.truePos : userPosition;
   const currentTrail = isDemoMode && demoState ? demoState.trail : [];
   const currentRouteNodes = isDemoMode ? demoController.getRouteNodes() : routeNodes;
 
-  // Render building rooms when zoomed in
-  const renderBuildingRooms = useCallback((building: CampusBuilding) => {
-    if (zoomLevel < 4 || building.rooms.length === 0) return null;
-    
-    const pos = ts(building.position.x, building.position.y);
-    const w = scaleValue(building.width);
-    const h = scaleValue(building.height);
-    
-    // Simple grid layout for rooms
-    const roomsPerRow = Math.ceil(Math.sqrt(building.rooms.length));
-    const roomWidth = w / roomsPerRow - 4;
-    const roomHeight = h / Math.ceil(building.rooms.length / roomsPerRow) - 4;
-    
-    return building.rooms.map((room, index) => {
-      const row = Math.floor(index / roomsPerRow);
-      const col = index % roomsPerRow;
-      const roomX = pos.sx + 2 + col * (roomWidth + 4);
-      const roomY = pos.sy - h + 2 + row * (roomHeight + 4);
-      const colors = getRoomColors(room.type);
-      
-      return (
-        <g key={room.id} onClick={(e) => handleRoomClick(e, room, building)} style={{ cursor: "pointer" }}>
-          <rect
-            x={roomX}
-            y={roomY}
-            width={roomWidth}
-            height={roomHeight}
-            fill={colors.fill}
-            stroke={colors.stroke}
-            strokeWidth={1}
-            rx={2}
-          />
-          {zoomLevel >= 5 && roomWidth > 25 && (
-            <text
-              x={roomX + roomWidth / 2}
-              y={roomY + roomHeight / 2 + 3}
-              fill={colors.stroke}
-              fontSize={Math.min(9, roomWidth / 5)}
-              fontWeight="500"
-              textAnchor="middle"
-            >
-              {room.num}
-            </text>
-          )}
-        </g>
-      );
-    });
-  }, [zoomLevel, ts, scaleValue, handleRoomClick]);
+  // Zoom level thresholds for progressive detail
+  const zoomLevel =
+    view.scale < 0.6 ? 0 : view.scale < 1 ? 1 : view.scale < 2 ? 2 : view.scale < 4 ? 3 : view.scale < 7 ? 4 : 5;
+
+  // Show indoor rooms at high zoom
+  const showIndoorRooms = zoomLevel >= 4;
 
   return (
     <svg
@@ -458,7 +488,7 @@ export function CampusMapSVG({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       className="touch-none select-none cursor-grab active:cursor-grabbing"
-      style={{ background: "#E9F0F8" }}
+      style={{ background: "#E8F0FA" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -470,41 +500,30 @@ export function CampusMapSVG({
       onDoubleClick={handleDoubleClick}
     >
       <defs>
-        {/* Filters and gradients */}
+        {/* Building shadow filter */}
         <filter id="buildingShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="1" dy="2" stdDeviation="2.5" floodOpacity="0.18" />
+          <feDropShadow dx="1" dy="2" stdDeviation="2" floodOpacity="0.15" />
         </filter>
-        <filter id="buildingShadowHover" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="2" dy="4" stdDeviation="4" floodOpacity="0.25" />
-        </filter>
+        {/* User glow */}
         <radialGradient id="userGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#0066CC" stopOpacity="0.5" />
+          <stop offset="0%" stopColor="#0066CC" stopOpacity="0.4" />
           <stop offset="100%" stopColor="#0066CC" stopOpacity="0" />
         </radialGradient>
+        {/* Destination glow */}
         <radialGradient id="destGlow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#6633BB" stopOpacity="0.5" />
           <stop offset="100%" stopColor="#6633BB" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id="roadGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#F8FAFC" />
-          <stop offset="100%" stopColor="#EEF2F7" />
-        </linearGradient>
-        <pattern id="grassPattern" patternUnits="userSpaceOnUse" width="12" height="12">
-          <rect width="12" height="12" fill="#C8E0C0" />
-          <circle cx="2" cy="2" r="1" fill="#B0D0A0" opacity="0.5" />
-          <circle cx="8" cy="6" r="1" fill="#B0D0A0" opacity="0.5" />
-          <circle cx="4" cy="10" r="1" fill="#B0D0A0" opacity="0.5" />
-        </pattern>
-        <pattern id="parkingPattern" patternUnits="userSpaceOnUse" width="20" height="20" patternTransform={`scale(${Math.max(0.5, view.scale * 0.3)})`}>
-          <rect width="20" height="20" fill="#E0E5EB" />
-          <line x1="0" y1="10" x2="20" y2="10" stroke="#CCD5DD" strokeWidth="1" strokeDasharray="2,3" />
+        {/* Road pattern */}
+        <pattern id="roadDash" patternUnits="userSpaceOnUse" width="20" height="4">
+          <rect width="12" height="2" y="1" fill="#FFFFFF" opacity="0.6" />
         </pattern>
       </defs>
 
       {/* Background */}
-      <rect width={width} height={height} fill="#E9F0F8" />
+      <rect width={width} height={height} fill="#E8F0FA" />
 
-      {/* === LAYER 1: Garden Zones === */}
+      {/* LAYER 1 - Garden zones */}
       {GARDEN_ZONES.map((zone) => {
         const pos = ts(zone.position.x, zone.position.y);
         const w = scaleValue(zone.width);
@@ -516,27 +535,38 @@ export function CampusMapSVG({
             y={pos.sy - h}
             width={w}
             height={h}
-            fill="url(#grassPattern)"
-            rx={6}
-            opacity={0.9}
+            fill="#D4E8D0"
+            rx={4}
           />
         );
       })}
 
-      {/* === LAYER 2: Sports Ground === */}
+      {/* LAYER 2 - Sports Ground */}
       {(() => {
         const pos = ts(SPORTS_GROUND.position.x, SPORTS_GROUND.position.y);
         const w = scaleValue(SPORTS_GROUND.width);
         const h = scaleValue(SPORTS_GROUND.height);
         return (
           <g>
-            <rect x={pos.sx} y={pos.sy - h} width={w} height={h} fill="#8BC88A" stroke="#5A9A58" strokeWidth={1.5} rx={4} />
-            {/* Field markings */}
-            <rect x={pos.sx + 3} y={pos.sy - h + 3} width={w - 6} height={h - 6} fill="none" stroke="#FFFFFF" strokeWidth={1.5} rx={2} opacity={0.7} />
-            <line x1={pos.sx + w / 2} y1={pos.sy - h + 3} x2={pos.sx + w / 2} y2={pos.sy - 3} stroke="#FFFFFF" strokeWidth={1.5} opacity={0.7} />
-            <circle cx={pos.sx + w / 2} cy={pos.sy - h / 2} r={Math.min(w, h) * 0.15} fill="none" stroke="#FFFFFF" strokeWidth={1.5} opacity={0.7} />
+            <rect
+              x={pos.sx}
+              y={pos.sy - h}
+              width={w}
+              height={h}
+              fill="#B8D8B0"
+              stroke="#88B880"
+              strokeWidth={1}
+              rx={4}
+            />
             {zoomLevel >= 2 && (
-              <text x={pos.sx + w / 2} y={pos.sy - h / 2 + 4} fill="#FFFFFF" fontSize={10} textAnchor="middle" fontWeight="600" opacity={0.9}>
+              <text
+                x={pos.sx + w / 2}
+                y={pos.sy - h / 2 + 4}
+                fill="#446644"
+                fontSize={Math.max(9, 11 * view.scale)}
+                textAnchor="middle"
+                fontWeight="600"
+              >
                 Sports Ground
               </text>
             )}
@@ -544,68 +574,47 @@ export function CampusMapSVG({
         );
       })()}
 
-      {/* === LAYER 3: External Buildings (muted) === */}
+      {/* LAYER 3 - External City Blocks */}
       {EXTERNAL_BUILDINGS.map((building) => {
         const pos = ts(building.position.x, building.position.y);
         const w = scaleValue(building.width);
         const h = scaleValue(building.height);
         return (
-          <g key={building.id}>
-            <rect x={pos.sx} y={pos.sy - h} width={w} height={h} fill="#D8DCE2" stroke="#B0B8C2" strokeWidth={0.8} rx={3} />
-            {zoomLevel >= 2 && w > 40 && (
-              <text x={pos.sx + w / 2} y={pos.sy - h / 2 + 3} fill="#6A7080" fontSize={8} textAnchor="middle" fontWeight="500" opacity={0.8}>
-                {building.shortName}
-              </text>
-            )}
-          </g>
+          <rect
+            key={building.id}
+            x={pos.sx}
+            y={pos.sy - h}
+            width={w}
+            height={h}
+            fill="#E0E4E8"
+            rx={2}
+          />
         );
       })}
 
-      {/* === LAYER 4: External Streets === */}
+      {/* LAYER 4 - External Streets */}
       {EXTERNAL_STREETS.map((street, i) => {
         const from = ts(street.from.x, street.from.y);
         const to = ts(street.to.x, street.to.y);
         return (
-          <g key={`street-${i}`}>
-            <line
-              x1={from.sx}
-              y1={from.sy}
-              x2={to.sx}
-              y2={to.sy}
-              stroke="#C5CDD8"
-              strokeWidth={Math.max(12, 20 * view.scale)}
-              strokeLinecap="round"
-            />
-            <line
-              x1={from.sx}
-              y1={from.sy}
-              x2={to.sx}
-              y2={to.sy}
-              stroke="#D5DCE5"
-              strokeWidth={Math.max(10, 18 * view.scale)}
-              strokeLinecap="round"
-            />
-            {zoomLevel >= 1 && street.label && (
-              <text
-                x={(from.sx + to.sx) / 2}
-                y={(from.sy + to.sy) / 2 - 8}
-                fill="#7080A0"
-                fontSize={Math.max(8, 10 * view.scale)}
-                textAnchor="middle"
-                fontWeight="500"
-              >
-                {street.label}
-              </text>
-            )}
-          </g>
+          <line
+            key={`street-${i}`}
+            x1={from.sx}
+            y1={from.sy}
+            x2={to.sx}
+            y2={to.sy}
+            stroke="#D0D4D8"
+            strokeWidth={Math.max(8, 16 * view.scale)}
+            strokeLinecap="round"
+          />
         );
       })}
 
-      {/* === LAYER 5: Campus Roads === */}
+      {/* LAYER 5 - Campus Roads */}
       {CAMPUS_ROADS.map((road, i) => {
         const from = ts(road.from.x, road.from.y);
         const to = ts(road.to.x, road.to.y);
-        const roadWidth = Math.max(8, road.width * view.scale);
+        const roadWidth = Math.max(6, road.width * view.scale);
         return (
           <g key={`road-${i}`}>
             {/* Road outline */}
@@ -614,86 +623,101 @@ export function CampusMapSVG({
               y1={from.sy}
               x2={to.sx}
               y2={to.sy}
-              stroke="#A8B4C4"
-              strokeWidth={roadWidth + 3}
+              stroke="#B8C0CC"
+              strokeWidth={roadWidth + 2}
               strokeLinecap="round"
             />
-            {/* Road surface */}
+            {/* Road fill */}
             <line
               x1={from.sx}
               y1={from.sy}
               x2={to.sx}
               y2={to.sy}
-              stroke="#F5F8FB"
+              stroke="#F5F7FA"
               strokeWidth={roadWidth}
               strokeLinecap="round"
             />
-            {/* Center line for main roads */}
-            {road.width >= 12 && (
-              <line
-                x1={from.sx}
-                y1={from.sy}
-                x2={to.sx}
-                y2={to.sy}
-                stroke="#E0E5EB"
-                strokeWidth={1}
-                strokeDasharray="8,6"
-                strokeLinecap="round"
-              />
-            )}
           </g>
         );
       })}
 
-      {/* === LAYER 6: Parking Areas === */}
+      {/* LAYER 6 - Parking Areas */}
       {PARKING_AREAS.map((parking) => {
         const pos = ts(parking.position.x, parking.position.y);
         const w = scaleValue(parking.width);
         const h = scaleValue(parking.height);
         return (
           <g key={parking.id}>
-            <rect x={pos.sx} y={pos.sy - h} width={w} height={h} fill="url(#parkingPattern)" stroke="#B0BAC8" strokeWidth={1} rx={4} />
-            {/* Parking icon */}
-            <rect x={pos.sx + w / 2 - 10} y={pos.sy - h / 2 - 10} width={20} height={20} fill="#3366AA" rx={4} />
-            <text x={pos.sx + w / 2} y={pos.sy - h / 2 + 5} fill="#FFFFFF" fontSize={14} fontWeight="bold" textAnchor="middle">P</text>
+            <rect
+              x={pos.sx}
+              y={pos.sy - h}
+              width={w}
+              height={h}
+              fill="#E8ECF0"
+              stroke="#C0C8D0"
+              strokeWidth={1}
+              rx={3}
+            />
+            {/* P icon */}
+            <rect
+              x={pos.sx + w / 2 - 8}
+              y={pos.sy - h / 2 - 8}
+              width={16}
+              height={16}
+              fill="#3366AA"
+              rx={3}
+            />
+            <text
+              x={pos.sx + w / 2}
+              y={pos.sy - h / 2 + 5}
+              fill="#FFFFFF"
+              fontSize={12}
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              P
+            </text>
           </g>
         );
       })}
 
-      {/* === LAYER 7: KCEV Area Boundary === */}
+      {/* LAYER 7 - KCEV Area Boundary */}
       {(() => {
         const points = KCEV_BOUNDARY.map((p) => {
           const pos = ts(p.x, p.y);
           return `${pos.sx},${pos.sy}`;
         }).join(" ");
-        const center = ts(310, 360);
         return (
           <g>
             <polygon
               points={points}
-              fill="rgba(204,0,102,0.04)"
-              stroke="#CC0066"
-              strokeWidth={2}
-              strokeDasharray="8,5"
+              fill="rgba(180,60,120,0.06)"
+              stroke="#AA3366"
+              strokeWidth={1.5}
+              strokeDasharray="6,4"
             />
-            {zoomLevel >= 1 && (
-              <text
-                x={center.sx}
-                y={center.sy}
-                fill="#CC0066"
-                fontSize={Math.max(10, 13 * view.scale)}
-                textAnchor="middle"
-                fontWeight="700"
-                opacity={0.7}
-              >
-                KCEV
-              </text>
-            )}
+            {zoomLevel >= 1 &&
+              (() => {
+                const center = ts(310, 360);
+                return (
+                  <text
+                    x={center.sx}
+                    y={center.sy}
+                    fill="#AA3366"
+                    fontSize={Math.max(10, 12 * view.scale)}
+                    textAnchor="middle"
+                    fontWeight="600"
+                    opacity={0.8}
+                  >
+                    KCEV
+                  </text>
+                );
+              })()}
           </g>
         );
       })()}
 
-      {/* === LAYER 8: Campus Buildings === */}
+      {/* LAYER 8 - Campus Buildings */}
       {ALL_BUILDINGS.map((building) => {
         const pos = ts(building.position.x, building.position.y);
         const w = scaleValue(building.width);
@@ -701,27 +725,23 @@ export function CampusMapSVG({
         const colors = getBuildingColors(building.type);
         const isSelected = selectedBuilding === building.id;
         const isDestination = destinationBuilding === building.id;
-        const isHovered = hoveredBuilding === building.id;
-        const showRooms = zoomLevel >= 4 && (isSelected || isDestination || isHovered);
 
         return (
           <g
             key={building.id}
             onClick={(e) => handleBuildingClick(e, building)}
-            onMouseEnter={() => setHoveredBuilding(building.id)}
-            onMouseLeave={() => setHoveredBuilding(null)}
             style={{ cursor: "pointer" }}
-            filter={isHovered ? "url(#buildingShadowHover)" : "url(#buildingShadow)"}
+            filter="url(#buildingShadow)"
           >
-            {/* Destination glow */}
+            {/* Destination highlight */}
             {isDestination && (
               <rect
-                x={pos.sx - 8}
-                y={pos.sy - h - 8}
-                width={w + 16}
-                height={h + 16}
+                x={pos.sx - 6}
+                y={pos.sy - h - 6}
+                width={w + 12}
+                height={h + 12}
                 fill="url(#destGlow)"
-                rx={10}
+                rx={8}
               />
             )}
 
@@ -731,31 +751,85 @@ export function CampusMapSVG({
               y={pos.sy - h}
               width={w}
               height={h}
-              fill={isDestination ? "#F0E8FF" : isHovered ? "#FFFFFF" : colors.fill}
-              stroke={isSelected ? "#001144" : isDestination ? "#6633BB" : isHovered ? "#0044AA" : colors.stroke}
-              strokeWidth={isSelected || isDestination ? 3 : isHovered ? 2 : 1.5}
-              rx={5}
+              fill={isDestination ? "#EDE8F8" : colors.fill}
+              stroke={isSelected ? "#002255" : isDestination ? "#6633BB" : colors.stroke}
+              strokeWidth={isSelected || isDestination ? 2.5 : 1.5}
+              rx={4}
             />
 
-            {/* Rooms (when zoomed in) */}
-            {showRooms && renderBuildingRooms(building)}
+            {/* Indoor rooms when zoomed in */}
+            {showIndoorRooms && building.rooms && building.rooms.length > 0 && (
+              <g>
+                {building.rooms
+                  .filter((r) => r.floor === 1) // Show ground floor
+                  .map((room, roomIndex) => {
+                    // Generate grid layout for rooms (auto-arrange based on index)
+                    const roomsOnFloor = building.rooms.filter((r) => r.floor === 1);
+                    const cols = Math.ceil(Math.sqrt(roomsOnFloor.length));
+                    const rows = Math.ceil(roomsOnFloor.length / cols);
+                    const col = roomIndex % cols;
+                    const row = Math.floor(roomIndex / cols);
+                    const padding = 4;
+                    const cellW = (w - padding * 2) / cols;
+                    const cellH = (h - padding * 2) / rows;
+                    const roomX = pos.sx + padding + col * cellW;
+                    const roomY = pos.sy - h + padding + row * cellH;
+                    const roomW = cellW - 2;
+                    const roomH = cellH - 2;
+                    const roomColor = ROOM_COLORS[room.type || "default"] || ROOM_COLORS.default;
+                    const isRoomSelected = selectedRoom === room.id;
+
+                    return (
+                      <g
+                        key={room.id}
+                        onClick={(e) => handleRoomClick(e, room, building)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <rect
+                          x={roomX}
+                          y={roomY}
+                          width={roomW}
+                          height={roomH}
+                          fill={roomColor.fill}
+                          stroke={isRoomSelected ? "#002255" : roomColor.stroke}
+                          strokeWidth={isRoomSelected ? 1.5 : 0.75}
+                          rx={2}
+                        />
+                        {/* Room number badge */}
+                        {roomW > 15 && roomH > 10 && (
+                          <text
+                            x={roomX + roomW / 2}
+                            y={roomY + roomH / 2 + 3}
+                            fill="#334455"
+                            fontSize={Math.max(6, Math.min(roomW / 4, roomH / 3, 10))}
+                            textAnchor="middle"
+                            fontWeight="600"
+                          >
+                            {room.num}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+              </g>
+            )}
 
             {/* Building number badge */}
-            {building.number !== 0 && w > 15 && !showRooms && (
+            {building.number !== 0 && w > 12 && (
               <g>
                 <rect
-                  x={pos.sx + 4}
-                  y={pos.sy - h + 4}
-                  width={Math.max(16, 18 * Math.min(1.2, view.scale))}
-                  height={Math.max(16, 18 * Math.min(1.2, view.scale))}
+                  x={pos.sx + 3}
+                  y={pos.sy - h + 3}
+                  width={Math.max(14, 16 * Math.min(1, view.scale))}
+                  height={Math.max(14, 16 * Math.min(1, view.scale))}
                   fill={colors.stroke}
-                  rx={4}
+                  rx={3}
                 />
                 <text
-                  x={pos.sx + 4 + Math.max(8, 9 * Math.min(1.2, view.scale))}
-                  y={pos.sy - h + 4 + Math.max(12, 13 * Math.min(1.2, view.scale))}
-                  fill="#FFFFFF"
-                  fontSize={Math.max(10, 11 * Math.min(1.2, view.scale))}
+                  x={pos.sx + 3 + Math.max(7, 8 * Math.min(1, view.scale))}
+                  y={pos.sy - h + 3 + Math.max(10, 12 * Math.min(1, view.scale))}
+                  fill="#ffffff"
+                  fontSize={Math.max(9, 10 * Math.min(1, view.scale))}
                   fontWeight="700"
                   textAnchor="middle"
                 >
@@ -764,35 +838,43 @@ export function CampusMapSVG({
               </g>
             )}
 
-            {/* Building name (at higher zoom) */}
-            {zoomLevel >= 2 && w > 35 && h > 25 && !showRooms && (
+            {/* Building name at medium+ zoom */}
+            {zoomLevel >= 2 && w > 30 && h > 20 && !showIndoorRooms && (
               <text
                 x={pos.sx + w / 2}
-                y={pos.sy - h / 2 + 5}
-                fill="#1A2A4A"
-                fontSize={Math.max(8, Math.min(11, w / 6))}
+                y={pos.sy - h / 2 + 4}
+                fill="#1a2a4a"
+                fontSize={Math.max(7, 9 * view.scale)}
                 fontWeight="600"
                 textAnchor="middle"
-                opacity={0.9}
+                opacity={0.85}
               >
-                {building.shortName.length > 14 ? building.shortName.slice(0, 12) + "..." : building.shortName}
+                {building.shortName.length > 12
+                  ? building.shortName.slice(0, 10) + "..."
+                  : building.shortName}
               </text>
             )}
 
             {/* Under construction indicator */}
             {building.underConstruction && (
               <g>
-                <rect x={pos.sx + w - 20} y={pos.sy - h + 4} width={16} height={16} fill="#F5A800" rx={3} />
-                <text x={pos.sx + w - 12} y={pos.sy - h + 15} fill="#FFFFFF" fontSize={10} fontWeight="bold" textAnchor="middle">!</text>
-              </g>
-            )}
-
-            {/* Floor indicator (when zoomed in) */}
-            {zoomLevel >= 3 && building.floors > 1 && (
-              <g>
-                <rect x={pos.sx + w - 24} y={pos.sy - 20} width={20} height={16} fill="#4466AA" rx={3} opacity={0.9} />
-                <text x={pos.sx + w - 14} y={pos.sy - 8} fill="#FFFFFF" fontSize={9} fontWeight="600" textAnchor="middle">
-                  {building.floors}F
+                <rect
+                  x={pos.sx + w - 18}
+                  y={pos.sy - h + 3}
+                  width={15}
+                  height={15}
+                  fill="#F5A800"
+                  rx={3}
+                />
+                <text
+                  x={pos.sx + w - 10.5}
+                  y={pos.sy - h + 13}
+                  fill="#FFFFFF"
+                  fontSize={8}
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  !
                 </text>
               </g>
             )}
@@ -800,24 +882,20 @@ export function CampusMapSVG({
         );
       })}
 
-      {/* === LAYER 9: Gate Markers === */}
+      {/* LAYER 9 - Gate Markers */}
       {GATES.map((gate) => {
         const pos = ts(gate.position.x, gate.position.y);
-        const r = Math.max(12, 14 * view.scale);
+        const r = Math.max(10, 12 * view.scale);
         return (
           <g key={gate.id}>
-            {/* Gate background circle */}
-            <circle cx={pos.sx} cy={pos.sy} r={r + 3} fill="#FFFFFF" opacity={0.9} />
-            <circle cx={pos.sx} cy={pos.sy} r={r} fill="#DCF0E8" stroke="#00883A" strokeWidth={2.5} />
-            {/* Gate icon */}
-            <rect x={pos.sx - 5} y={pos.sy - 6} width={10} height={12} fill="#00883A" rx={2} />
-            <rect x={pos.sx - 3} y={pos.sy - 4} width={6} height={8} fill="#FFFFFF" rx={1} />
-            {/* Gate label */}
+            <circle cx={pos.sx} cy={pos.sy} r={r} fill="#FFFFFF" stroke="#00883A" strokeWidth={2.5} />
+            <rect x={pos.sx - 4} y={pos.sy - 5} width={8} height={10} fill="#00883A" rx={1} />
+            <rect x={pos.sx - 2} y={pos.sy - 3} width={4} height={6} fill="#FFFFFF" rx={0.5} />
             <text
               x={pos.sx}
-              y={pos.sy + r + 14}
-              fill="#006030"
-              fontSize={Math.max(10, 12 * view.scale)}
+              y={pos.sy + r + 12}
+              fill="#006830"
+              fontSize={Math.max(9, 11 * view.scale)}
               fontWeight="600"
               textAnchor="middle"
             >
@@ -827,8 +905,9 @@ export function CampusMapSVG({
         );
       })}
 
-      {/* === LAYER 10: Debug Path Edges === */}
-      {showPathEdges && zoomLevel >= 2 &&
+      {/* LAYER 10 - Debug Path Edges */}
+      {showPathEdges &&
+        zoomLevel >= 2 &&
         currentRouteNodes.slice(0, -1).map((node, i) => {
           const from = ts(node.x, node.y);
           const to = ts(currentRouteNodes[i + 1].x, currentRouteNodes[i + 1].y);
@@ -840,51 +919,59 @@ export function CampusMapSVG({
               x2={to.sx}
               y2={to.sy}
               stroke="#0066CC"
-              strokeWidth={2}
+              strokeWidth={1.5}
               opacity={0.4}
-              strokeDasharray="5,5"
+              strokeDasharray="4,4"
             />
           );
         })}
 
-      {/* === LAYER 11: Debug Path Nodes === */}
-      {showPathNodes && zoomLevel >= 2 &&
+      {/* LAYER 11 - Debug Path Nodes */}
+      {showPathNodes &&
+        zoomLevel >= 3 &&
         currentRouteNodes.map((node, i) => {
           const pos = ts(node.x, node.y);
-          return (
-            <circle key={`node-${i}`} cx={pos.sx} cy={pos.sy} r={5} fill="#1D9E75" stroke="#FFFFFF" strokeWidth={1.5} opacity={0.7} />
-          );
+          return <circle key={`node-${i}`} cx={pos.sx} cy={pos.sy} r={4} fill="#1d9e75" opacity={0.5} />;
         })}
 
-      {/* === LAYER 12: Navigation Route === */}
+      {/* LAYER 12 - Active Navigation Route */}
       {showRoute && currentRouteNodes.length >= 2 && (
         <g>
           {/* Route shadow */}
           <polyline
-            points={currentRouteNodes.map((node) => { const pos = ts(node.x, node.y); return `${pos.sx},${pos.sy}`; }).join(" ")}
+            points={currentRouteNodes.map((node) => {
+              const p = ts(node.x, node.y);
+              return `${p.sx},${p.sy}`;
+            }).join(" ")}
             fill="none"
-            stroke="#3311AA"
-            strokeWidth={10}
+            stroke="#4422AA"
+            strokeWidth={8}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity={0.15}
+            opacity={0.2}
           />
           {/* Route main line */}
           <polyline
-            points={currentRouteNodes.map((node) => { const pos = ts(node.x, node.y); return `${pos.sx},${pos.sy}`; }).join(" ")}
+            points={currentRouteNodes.map((node) => {
+              const p = ts(node.x, node.y);
+              return `${p.sx},${p.sy}`;
+            }).join(" ")}
             fill="none"
             stroke="#6633BB"
-            strokeWidth={7}
+            strokeWidth={6}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {/* Marching ants animation */}
+          {/* Marching ants */}
           <polyline
-            points={currentRouteNodes.map((node) => { const pos = ts(node.x, node.y); return `${pos.sx},${pos.sy}`; }).join(" ")}
+            points={currentRouteNodes.map((node) => {
+              const p = ts(node.x, node.y);
+              return `${p.sx},${p.sy}`;
+            }).join(" ")}
             fill="none"
             stroke="#FFFFFF"
             strokeWidth={3}
-            strokeDasharray="10,14"
+            strokeDasharray="8,12"
             strokeDashoffset={marchingOffset}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -892,46 +979,45 @@ export function CampusMapSVG({
         </g>
       )}
 
-      {/* === LAYER 13: Position Trail === */}
-      {showTrail && currentTrail.map((pos, i) => {
-        const screenPos = ts(pos.x, pos.y);
-        const opacity = 0.15 + (i / currentTrail.length) * 0.55;
-        const r = 2 + (i / currentTrail.length) * 3;
-        return (
-          <circle key={`trail-${i}`} cx={screenPos.sx} cy={screenPos.sy} r={r} fill="#0066CC" opacity={opacity} />
-        );
-      })}
+      {/* LAYER 13 - Position Trail */}
+      {showTrail &&
+        currentTrail.map((pos, i) => {
+          const screenPos = ts(pos.x, pos.y);
+          const opacity = (i / currentTrail.length) * 0.6;
+          const r = 2 + (i / currentTrail.length) * 2;
+          return <circle key={`trail-${i}`} cx={screenPos.sx} cy={screenPos.sy} r={r} fill="#0066CC" opacity={opacity} />;
+        })}
 
-      {/* === LAYER 14: WiFi Position (debug) === */}
+      {/* WiFi Position (debug) */}
       {isDemoMode && showWifiDot && demoState && (
         <g>
           {(() => {
             const pos = ts(demoState.wifiPos.x, demoState.wifiPos.y);
             return (
               <>
-                <circle cx={pos.sx} cy={pos.sy} r={18} fill="#0066CC" opacity={0.12} />
-                <circle cx={pos.sx} cy={pos.sy} r={7} fill="#0066CC" stroke="#FFFFFF" strokeWidth={2.5} />
+                <circle cx={pos.sx} cy={pos.sy} r={16} fill="#0066CC" opacity={0.15} />
+                <circle cx={pos.sx} cy={pos.sy} r={6} fill="#0066CC" stroke="#FFFFFF" strokeWidth={2} />
               </>
             );
           })()}
         </g>
       )}
 
-      {/* === LAYER 15: Kalman Position (debug) === */}
+      {/* Kalman Position (debug) */}
       {isDemoMode && showKalmanDot && demoState && (
         <g>
           {(() => {
             const pos = ts(demoState.kalmanPos.x, demoState.kalmanPos.y);
             return (
               <rect
-                x={pos.sx - 7}
-                y={pos.sy - 7}
-                width={14}
-                height={14}
+                x={pos.sx - 6}
+                y={pos.sy - 6}
+                width={12}
+                height={12}
                 fill="#F5A800"
                 stroke="#FFFFFF"
-                strokeWidth={2.5}
-                rx={3}
+                strokeWidth={2}
+                rx={2}
                 transform={`rotate(45 ${pos.sx} ${pos.sy})`}
               />
             );
@@ -939,7 +1025,7 @@ export function CampusMapSVG({
         </g>
       )}
 
-      {/* === LAYER 16: User Position === */}
+      {/* LAYER 14 - User Position */}
       {currentPos && (
         <g>
           {(() => {
@@ -950,48 +1036,41 @@ export function CampusMapSVG({
                 <circle
                   cx={pos.sx}
                   cy={pos.sy}
-                  r={32 + 20 * (pulseScale - 1)}
+                  r={28 + 16 * (pulseScale - 1)}
                   fill="url(#userGlow)"
-                  opacity={1.3 - 0.8 * (pulseScale - 1)}
+                  opacity={1.2 - 0.8 * (pulseScale - 1)}
                 />
                 {/* Outer ring */}
-                <circle cx={pos.sx} cy={pos.sy} r={22} fill="#FFFFFF" stroke="#0055BB" strokeWidth={3.5} />
+                <circle cx={pos.sx} cy={pos.sy} r={18} fill="#FFFFFF" stroke="#0055BB" strokeWidth={3} />
                 {/* Inner solid */}
-                <circle cx={pos.sx} cy={pos.sy} r={15} fill="#0066CC" />
+                <circle cx={pos.sx} cy={pos.sy} r={12} fill="#0066CC" />
                 {/* Person icon */}
-                <circle cx={pos.sx} cy={pos.sy - 4} r={4} fill="#FFFFFF" />
-                <ellipse cx={pos.sx} cy={pos.sy + 5} rx={5} ry={4} fill="#FFFFFF" />
+                <circle cx={pos.sx} cy={pos.sy - 3} r={3} fill="#FFFFFF" />
+                <ellipse cx={pos.sx} cy={pos.sy + 4} rx={4} ry={3} fill="#FFFFFF" />
               </>
             );
           })()}
         </g>
       )}
 
-      {/* === LAYER 17: Destination Pin === */}
+      {/* LAYER 15 - Destination Pin */}
       {destinationBuilding && (
         <g>
           {(() => {
             const building = ALL_BUILDINGS.find((b) => b.id === destinationBuilding);
             if (!building) return null;
-            const pos = ts(
-              building.position.x + building.width / 2,
-              building.position.y + building.height / 2
-            );
+            const pos = ts(building.position.x + building.width / 2, building.position.y + building.height / 2);
             return (
               <>
-                {/* Pin shadow */}
-                <ellipse cx={pos.sx + 2} cy={pos.sy + 24} rx={10} ry={5} fill="#000000" opacity={0.15} />
-                {/* Pin body */}
+                <ellipse cx={pos.sx + 2} cy={pos.sy + 20} rx={8} ry={4} fill="#000000" opacity={0.15} />
                 <path
-                  d={`M${pos.sx} ${pos.sy + 16} L${pos.sx - 14} ${pos.sy - 8} A16 16 0 1 1 ${pos.sx + 14} ${pos.sy - 8} Z`}
+                  d={`M${pos.sx} ${pos.sy + 14} L${pos.sx - 12} ${pos.sy - 6} A14 14 0 1 1 ${pos.sx + 12} ${pos.sy - 6} Z`}
                   fill="#6633BB"
                   stroke="#FFFFFF"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                 />
-                {/* Pin inner circle */}
-                <circle cx={pos.sx} cy={pos.sy - 10} r={7} fill="#FFFFFF" />
-                {/* Building number */}
-                <text x={pos.sx} y={pos.sy - 6} fill="#6633BB" fontSize={10} fontWeight="bold" textAnchor="middle">
+                <circle cx={pos.sx} cy={pos.sy - 8} r={6} fill="#FFFFFF" />
+                <text x={pos.sx} y={pos.sy - 5} fill="#6633BB" fontSize={8} fontWeight="bold" textAnchor="middle">
                   {building.number}
                 </text>
               </>
@@ -999,9 +1078,24 @@ export function CampusMapSVG({
           })()}
         </g>
       )}
+
+      {/* LAYER 16 - Zoom indicator (bottom right) */}
+      <g>
+        <rect x={width - 70} y={height - 40} width={60} height={30} rx={6} fill="rgba(255,255,255,0.95)" stroke="#D0D8E0" strokeWidth={1} />
+        <text x={width - 40} y={height - 20} fontSize={12} fill="#2a3a5a" textAnchor="middle" fontWeight="600">
+          {Math.round(view.scale * 100)}%
+        </text>
+
+        {/* Speed indicator (demo mode) */}
+        {isDemoMode && (
+          <>
+            <rect x={10} y={height - 40} width={80} height={30} rx={6} fill="rgba(255,255,255,0.95)" stroke="#D0D8E0" strokeWidth={1} />
+            <text x={50} y={height - 20} fontSize={11} fill="#2a3a5a" textAnchor="middle" fontWeight="500">
+              {animationSpeed.toFixed(1)} m/s
+            </text>
+          </>
+        )}
+      </g>
     </svg>
   );
-}
-
-// Export zoom functions for external control
-export { MIN_SCALE, MAX_SCALE, ZOOM_LEVEL };
+});

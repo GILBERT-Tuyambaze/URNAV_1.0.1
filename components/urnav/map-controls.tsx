@@ -1,34 +1,33 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Plus,
   Minus,
   RotateCcw,
   Crosshair,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Gauge,
   Layers,
   Info,
   ChevronUp,
   ChevronDown,
-  Play,
-  Pause,
-  SkipForward,
-  SkipBack,
-  Gauge,
-  Eye,
-  EyeOff,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { demoController } from "@/lib/demo-controller";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { DEMO_ROUTES } from "@/lib/campus-data";
+import { cn } from "@/lib/utils";
 
 interface MapControlsProps {
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
-  onCenterOnUser?: () => void;
+  onCenterOnUser: () => void;
   isDemoMode?: boolean;
   isPlaying?: boolean;
   speed?: number;
@@ -46,6 +45,22 @@ interface MapControlsProps {
   showPathEdges?: boolean;
   onToggleLayer?: (layer: string, value: boolean) => void;
 }
+
+// Legend items
+const LEGEND_ITEMS = [
+  { icon: "circle", color: "#00883A", label: "Gate" },
+  { icon: "square", color: "#DCEEFF", stroke: "#0066CC", label: "Academic" },
+  { icon: "square", color: "#DCF0E8", stroke: "#00883A", label: "Hostel" },
+  { icon: "square", color: "#EEE8FF", stroke: "#6633BB", label: "Admin" },
+  { icon: "square", color: "#FFF3DC", stroke: "#F5A800", label: "Service" },
+  { icon: "square", color: "#FFE8F5", stroke: "#CC0066", label: "Conference" },
+  { icon: "P", color: "#3366AA", label: "Parking" },
+  { icon: "line", color: "#F5F7FA", label: "Road" },
+  { icon: "hatch", color: "#AA3366", label: "KCEV Area" },
+  { icon: "x", color: "#F5A800", label: "Construction" },
+  { icon: "circle", color: "#6633BB", label: "Your route" },
+  { icon: "circle", color: "#0066CC", label: "Your position" },
+];
 
 export function MapControls({
   zoom,
@@ -71,290 +86,221 @@ export function MapControls({
   onToggleLayer,
 }: MapControlsProps) {
   const [showLegend, setShowLegend] = useState(false);
-  const [showLayerPanel, setShowLayerPanel] = useState(false);
-  const [showDemoPanel, setShowDemoPanel] = useState(false);
-
-  const zoomPercentage = Math.round(zoom * 100);
-
-  // Speed control helpers
-  const handleSpeedUp = useCallback(() => {
-    const newSpeed = Math.min(10, speed + 0.5);
-    onSpeedChange?.(newSpeed);
-    demoController.setSpeed(newSpeed);
-  }, [speed, onSpeedChange]);
-
-  const handleSpeedDown = useCallback(() => {
-    const newSpeed = Math.max(0.5, speed - 0.5);
-    onSpeedChange?.(newSpeed);
-    demoController.setSpeed(newSpeed);
-  }, [speed, onSpeedChange]);
-
-  const handleRouteChange = useCallback((routeId: string) => {
-    demoController.setRoute(routeId);
-    onRouteSelect?.(routeId);
-  }, [onRouteSelect]);
+  const [showLayers, setShowLayers] = useState(false);
+  const [showDemoPanel, setShowDemoPanel] = useState(true);
 
   return (
     <>
-      {/* === RIGHT SIDE: Zoom Controls === */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
-        {/* Zoom indicator */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg px-2.5 py-1.5 shadow-md border border-slate-200/80 text-center">
-          <span className="text-[11px] font-semibold text-slate-700">{zoomPercentage}%</span>
-        </div>
-
-        {/* Zoom buttons */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-md border border-slate-200/80 overflow-hidden">
+      {/* Right side zoom controls */}
+      <div className="absolute top-20 right-3 z-20 flex flex-col gap-2">
+        {/* Zoom controls */}
+        <div className="flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 overflow-hidden">
           <button
             onClick={onZoomIn}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 transition-colors border-b border-slate-200/80"
-            title="Zoom In"
+            className="h-10 w-10 flex items-center justify-center hover:bg-slate-100 transition-colors"
+            aria-label="Zoom in"
           >
-            <Plus className="w-5 h-5 text-slate-700" />
+            <Plus className="h-5 w-5 text-slate-600" />
           </button>
+          <div className="h-px bg-slate-200" />
           <button
             onClick={onZoomOut}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 transition-colors"
-            title="Zoom Out"
+            className="h-10 w-10 flex items-center justify-center hover:bg-slate-100 transition-colors"
+            aria-label="Zoom out"
           >
-            <Minus className="w-5 h-5 text-slate-700" />
+            <Minus className="h-5 w-5 text-slate-600" />
           </button>
         </div>
 
         {/* Reset view */}
-        <button
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={onResetView}
-          className="w-10 h-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md border border-slate-200/80 flex items-center justify-center hover:bg-slate-100 transition-colors"
-          title="Reset View"
+          className="h-10 w-10 rounded-xl shadow-lg bg-white border border-slate-200/80"
+          aria-label="Reset view"
         >
-          <RotateCcw className="w-4 h-4 text-slate-700" />
-        </button>
+          <RotateCcw className="h-4 w-4 text-slate-600" />
+        </Button>
 
         {/* Center on user */}
-        {onCenterOnUser && (
-          <button
-            onClick={onCenterOnUser}
-            className="w-10 h-10 bg-[#0066CC] rounded-xl shadow-md flex items-center justify-center hover:bg-[#0055AA] transition-colors"
-            title="Center on User"
-          >
-            <Crosshair className="w-5 h-5 text-white" />
-          </button>
-        )}
-      </div>
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={onCenterOnUser}
+          className="h-10 w-10 rounded-xl shadow-lg bg-white border border-slate-200/80"
+          aria-label="Center on user"
+        >
+          <Crosshair className="h-4 w-4 text-[#0066CC]" />
+        </Button>
 
-      {/* === TOP RIGHT: Legend & Layers === */}
-      <div className="absolute top-20 right-3 z-20 flex flex-col gap-2">
         {/* Legend toggle */}
-        <button
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={() => setShowLegend(!showLegend)}
           className={cn(
-            "w-10 h-10 rounded-xl shadow-md flex items-center justify-center transition-colors border",
-            showLegend
-              ? "bg-[#0066CC] text-white border-[#0055AA]"
-              : "bg-white/95 text-slate-700 border-slate-200/80 hover:bg-slate-100"
+            "h-10 w-10 rounded-xl shadow-lg border border-slate-200/80",
+            showLegend ? "bg-[#0066CC] text-white" : "bg-white text-slate-600"
           )}
-          title="Map Legend"
+          aria-label="Toggle legend"
         >
-          <Info className="w-5 h-5" />
-        </button>
+          <Info className="h-4 w-4" />
+        </Button>
 
-        {/* Layer toggle (demo mode) */}
+        {/* Layers toggle (demo mode) */}
         {isDemoMode && (
-          <button
-            onClick={() => setShowLayerPanel(!showLayerPanel)}
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => setShowLayers(!showLayers)}
             className={cn(
-              "w-10 h-10 rounded-xl shadow-md flex items-center justify-center transition-colors border",
-              showLayerPanel
-                ? "bg-[#6633BB] text-white border-[#5522AA]"
-                : "bg-white/95 text-slate-700 border-slate-200/80 hover:bg-slate-100"
+              "h-10 w-10 rounded-xl shadow-lg border border-slate-200/80",
+              showLayers ? "bg-[#6633BB] text-white" : "bg-white text-slate-600"
             )}
-            title="Layer Controls"
+            aria-label="Toggle layers"
           >
-            <Layers className="w-5 h-5" />
-          </button>
+            <Layers className="h-4 w-4" />
+          </Button>
         )}
       </div>
 
-      {/* === LEGEND PANEL === */}
+      {/* Legend Panel */}
       {showLegend && (
-        <div className="absolute top-20 right-14 z-30 w-44 bg-white/98 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 overflow-hidden animate-in slide-in-from-right-2 duration-200">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200/80 bg-slate-50/50">
-            <span className="text-xs font-semibold text-slate-700">Map Legend</span>
+        <div className="absolute top-20 right-16 z-30 w-44 bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl p-3 shadow-xl animate-in slide-in-from-right-2 duration-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-500 font-medium">Map Legend</span>
             <button onClick={() => setShowLegend(false)} className="text-slate-400 hover:text-slate-600">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
-            {/* Building Types */}
-            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1 pt-1">Buildings</div>
-            {[
-              { color: "#DCEEFF", stroke: "#0066CC", label: "Academic" },
-              { color: "#DCF0E8", stroke: "#00883A", label: "Hostel" },
-              { color: "#EEE8FF", stroke: "#6633BB", label: "Admin" },
-              { color: "#FFF3DC", stroke: "#F5A800", label: "Service" },
-              { color: "#FFE8DC", stroke: "#CC4400", label: "Facility" },
-              { color: "#FFE8F5", stroke: "#CC0066", label: "Conference" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-2 px-1 py-0.5">
-                <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: item.color, border: `1.5px solid ${item.stroke}` }} />
+          <div className="space-y-1.5">
+            {LEGEND_ITEMS.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 h-5">
+                <div className="w-4 flex items-center justify-center">
+                  {item.icon === "circle" && (
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  )}
+                  {item.icon === "square" && (
+                    <div
+                      className="w-3 h-3 rounded-sm border"
+                      style={{ backgroundColor: item.color, borderColor: item.stroke || item.color }}
+                    />
+                  )}
+                  {item.icon === "line" && (
+                    <div className="w-3.5 h-1 rounded-full border border-slate-300" style={{ backgroundColor: item.color }} />
+                  )}
+                  {item.icon === "hatch" && (
+                    <div className="w-3.5 h-3.5 relative rounded-sm overflow-hidden" style={{ backgroundColor: `${item.color}15` }}>
+                      {[0, 1, 2].map((j) => (
+                        <div
+                          key={j}
+                          className="absolute h-px w-full rotate-45"
+                          style={{ backgroundColor: item.color, top: `${j * 5 + 2}px`, opacity: 0.6 }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {item.icon === "x" && (
+                    <div className="relative w-2.5 h-2.5">
+                      <div className="absolute top-1/2 left-0 w-full h-0.5 rotate-45" style={{ backgroundColor: item.color }} />
+                      <div className="absolute top-1/2 left-0 w-full h-0.5 -rotate-45" style={{ backgroundColor: item.color }} />
+                    </div>
+                  )}
+                  {item.icon === "P" && (
+                    <span className="text-[10px] font-bold" style={{ color: item.color }}>P</span>
+                  )}
+                </div>
                 <span className="text-[11px] text-slate-700">{item.label}</span>
               </div>
             ))}
-
-            {/* Features */}
-            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Features</div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-4 rounded-full bg-[#DCF0E8] border-2 border-[#00883A] flex items-center justify-center">
-                <div className="w-2 h-2 bg-[#00883A] rounded-sm" />
-              </div>
-              <span className="text-[11px] text-slate-700">Gate</span>
+          </div>
+          
+          {/* Zoom info */}
+          <div className="mt-3 pt-2 border-t border-slate-200">
+            <p className="text-[10px] text-slate-500 mb-1">Zoom Level</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-700">{Math.round(zoom * 100)}%</span>
+              <span className="text-[10px] text-slate-400">
+                {zoom < 1 ? "Overview" : zoom < 2 ? "Campus" : zoom < 4 ? "Block" : zoom < 7 ? "Building" : "Room"}
+              </span>
             </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-3.5 bg-[#3366AA] rounded text-white text-[8px] font-bold flex items-center justify-center">P</div>
-              <span className="text-[11px] text-slate-700">Parking</span>
-            </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-1.5 rounded-full bg-[#F5F8FB] border border-[#A8B4C4]" />
-              <span className="text-[11px] text-slate-700">Road</span>
-            </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-3 bg-[#C8E0C0] rounded-sm border border-[#B0D0A0]" />
-              <span className="text-[11px] text-slate-700">Garden</span>
-            </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-3 bg-[#8BC88A] rounded-sm border border-[#5A9A58]" />
-              <span className="text-[11px] text-slate-700">Sports Ground</span>
-            </div>
-
-            {/* Navigation */}
-            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Navigation</div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-1 rounded-full bg-[#6633BB]" />
-              <span className="text-[11px] text-slate-700">Route</span>
-            </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-4 rounded-full bg-[#0066CC] flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full" />
-              </div>
-              <span className="text-[11px] text-slate-700">Your Location</span>
-            </div>
-            <div className="flex items-center gap-2 px-1 py-0.5">
-              <div className="w-4 h-4 bg-[#6633BB] rounded-full relative">
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-[#6633BB]" />
-              </div>
-              <span className="text-[11px] text-slate-700">Destination</span>
-            </div>
-
-            {/* Room Types (when zoomed) */}
-            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Rooms (zoom in)</div>
-            {[
-              { color: "#E0ECFF", stroke: "#0066CC", label: "Lab" },
-              { color: "#E8F0FF", stroke: "#3388DD", label: "Lecture" },
-              { color: "#F0F4FF", stroke: "#4466AA", label: "Office" },
-              { color: "#E8F5E8", stroke: "#00883A", label: "Common" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-2 px-1 py-0.5">
-                <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: item.color, border: `1px solid ${item.stroke}` }} />
-                <span className="text-[11px] text-slate-700">{item.label}</span>
-              </div>
-            ))}
           </div>
         </div>
       )}
 
-      {/* === LAYER PANEL === */}
-      {showLayerPanel && (
-        <div className="absolute top-32 right-14 z-30 w-48 bg-white/98 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 overflow-hidden animate-in slide-in-from-right-2 duration-200">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200/80 bg-slate-50/50">
-            <span className="text-xs font-semibold text-slate-700">Debug Layers</span>
-            <button onClick={() => setShowLayerPanel(false)} className="text-slate-400 hover:text-slate-600">
+      {/* Layers Panel (demo mode) */}
+      {isDemoMode && showLayers && (
+        <div className="absolute top-44 right-16 z-30 w-44 bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl p-3 shadow-xl animate-in slide-in-from-right-2 duration-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-500 font-medium">Debug Layers</span>
+            <button onClick={() => setShowLayers(false)} className="text-slate-400 hover:text-slate-600">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="p-2 space-y-1">
+          <div className="space-y-1.5">
             {[
-              { key: "trail", label: "Position Trail", color: "#6633BB", active: showTrail },
-              { key: "wifi", label: "Wi-Fi Position", color: "#0066CC", active: showWifiDot },
-              { key: "kalman", label: "Kalman Filter", color: "#F5A800", active: showKalmanDot },
-              { key: "nodes", label: "Path Nodes", color: "#00883A", active: showPathNodes },
-              { key: "edges", label: "Path Edges", color: "#00883A", active: showPathEdges },
+              { id: "trail", label: "Position trail", value: showTrail, color: "#6633BB" },
+              { id: "wifi", label: "Wi-Fi position", value: showWifiDot, color: "#0066CC" },
+              { id: "kalman", label: "Kalman filter", value: showKalmanDot, color: "#F5A800" },
+              { id: "nodes", label: "Path nodes", value: showPathNodes, color: "#00883A" },
+              { id: "edges", label: "Path edges", value: showPathEdges, color: "#00883A" },
             ].map((layer) => (
               <button
-                key={layer.key}
-                onClick={() => onToggleLayer?.(layer.key, !layer.active)}
+                key={layer.id}
+                onClick={() => onToggleLayer?.(layer.id, !layer.value)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors text-left",
-                  layer.active ? "bg-slate-100" : "hover:bg-slate-50"
+                  "w-full px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors font-medium flex items-center gap-2",
+                  layer.value
+                    ? "border"
+                    : "border border-slate-200 bg-white text-slate-400 hover:bg-slate-50"
                 )}
+                style={
+                  layer.value
+                    ? { borderColor: layer.color, backgroundColor: `${layer.color}15`, color: layer.color }
+                    : undefined
+                }
               >
                 <div
-                  className={cn(
-                    "w-5 h-5 rounded flex items-center justify-center border-2",
-                    layer.active ? "border-current bg-current/10" : "border-slate-300"
-                  )}
-                  style={{ borderColor: layer.active ? layer.color : undefined, color: layer.color }}
-                >
-                  {layer.active && (layer.key === "trail" || layer.key === "wifi" ? (
-                    <Eye className="w-3 h-3" style={{ color: layer.color }} />
-                  ) : (
-                    <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: layer.color }} />
-                  ))}
-                </div>
-                <span className={cn("text-[11px]", layer.active ? "text-slate-800 font-medium" : "text-slate-600")}>
-                  {layer.label}
-                </span>
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: layer.value ? layer.color : "#D0D0D0" }}
+                />
+                {layer.label}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* === BOTTOM: Demo Control Bar === */}
-      {isDemoMode && (
-        <div className="absolute bottom-4 left-4 right-4 z-20">
-          {/* Collapsed demo bar */}
-          {!showDemoPanel && (
-            <div
-              className="bg-white/98 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-              onClick={() => setShowDemoPanel(true)}
+      {/* Demo Control Panel (bottom) */}
+      {isDemoMode && showDemoPanel && (
+        <div className="absolute bottom-4 left-3 right-3 z-20">
+          <div className="bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl shadow-xl overflow-hidden">
+            {/* Header */}
+            <button
+              onClick={() => setShowDemoPanel(!showDemoPanel)}
+              className="w-full px-4 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <div className={cn("w-2.5 h-2.5 rounded-full animate-pulse", isPlaying ? "bg-green-500" : "bg-yellow-500")} />
-                <span className="text-xs font-medium text-slate-700">
-                  {isPlaying ? "Demo Running" : "Demo Paused"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{speed.toFixed(1)} m/s</span>
-                <ChevronUp className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-          )}
+              <span className="text-xs font-semibold text-[#6633BB] flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5" />
+                Demo Controls
+              </span>
+              <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDemoPanel && "rotate-180")} />
+            </button>
 
-          {/* Expanded demo panel */}
-          {showDemoPanel && (
-            <div className="bg-white/98 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
-              {/* Header */}
-              <div
-                className="flex items-center justify-between px-3 py-2 border-b border-slate-200/80 bg-slate-50/50 cursor-pointer"
-                onClick={() => setShowDemoPanel(false)}
-              >
-                <span className="text-xs font-semibold text-slate-700">Demo Controls</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-
+            <div className="px-4 pb-4 space-y-3">
               {/* Route selector */}
-              <div className="px-3 py-2 border-b border-slate-200/80">
-                <div className="text-[10px] text-slate-500 mb-1.5">Route</div>
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
+              <div>
+                <p className="text-[10px] text-slate-500 mb-1.5">Demo Route</p>
+                <div className="flex gap-1.5 flex-wrap">
                   {DEMO_ROUTES.map((route) => (
                     <button
                       key={route.id}
-                      onClick={() => handleRouteChange(route.id)}
+                      onClick={() => onRouteSelect?.(route.id)}
                       className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] whitespace-nowrap transition-colors font-medium",
+                        "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors",
                         selectedRoute === route.id
-                          ? "bg-[#0066CC] text-white"
+                          ? "bg-[#6633BB] text-white"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       )}
                     >
@@ -365,68 +311,82 @@ export function MapControls({
               </div>
 
               {/* Transport controls */}
-              <div className="px-3 py-3 flex items-center justify-center gap-2">
-                <button
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onReset}
-                  className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  title="Restart"
+                  className="h-9 w-9 bg-white border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
-                  <RotateCcw className="w-4 h-4 text-slate-600" />
-                </button>
-                <button
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onStepBackward}
-                  className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  title="Step Back"
+                  className="h-9 w-9 bg-white border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
-                  <SkipBack className="w-4 h-4 text-slate-600" />
-                </button>
-                <button
+                  <SkipBack className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
                   onClick={onPlayPause}
                   className={cn(
-                    "w-12 h-10 rounded-lg flex items-center justify-center transition-colors",
-                    isPlaying ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+                    "h-9 w-14 text-white font-semibold rounded-lg",
+                    isPlaying ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"
                   )}
-                  title={isPlaying ? "Pause" : "Play"}
                 >
-                  {isPlaying ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white" />}
-                </button>
-                <button
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onStepForward}
-                  className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  title="Step Forward"
+                  className="h-9 w-9 bg-white border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
-                  <SkipForward className="w-4 h-4 text-slate-600" />
-                </button>
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+              </div>
 
-                {/* Speed control */}
-                <div className="flex items-center gap-1 ml-2">
-                  <button
-                    onClick={handleSpeedDown}
-                    className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  >
-                    <Minus className="w-3 h-3 text-slate-600" />
-                  </button>
-                  <div className="w-14 h-8 rounded-lg bg-[#6633BB]/10 border border-[#6633BB]/30 flex items-center justify-center">
-                    <Gauge className="w-3 h-3 text-[#6633BB] mr-0.5" />
-                    <span className="text-[11px] font-semibold text-[#6633BB]">{speed.toFixed(1)}x</span>
-                  </div>
-                  <button
-                    onClick={handleSpeedUp}
-                    className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  >
-                    <Plus className="w-3 h-3 text-slate-600" />
-                  </button>
+              {/* Speed control */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] text-slate-500">Walk Speed</span>
+                  <span className="text-[11px] font-semibold text-[#0066CC]">{speed.toFixed(1)} m/s</span>
+                </div>
+                <Slider
+                  value={[speed]}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                  onValueChange={(v) => onSpeedChange?.(v[0])}
+                  className="[&_[role=slider]]:bg-[#0066CC] [&_[role=slider]]:border-[#0066CC]"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[9px] text-slate-400">0.5x</span>
+                  <span className="text-[9px] text-slate-400">10x</span>
                 </div>
               </div>
 
               {/* Keyboard shortcuts hint */}
-              <div className="px-3 py-2 bg-slate-50/50 border-t border-slate-200/80">
-                <div className="text-[9px] text-slate-500 text-center">
-                  <span className="font-medium">Keyboard:</span> Space=Play/Pause, W/S=Speed, A/D=Step, +/-=Zoom
-                </div>
+              <div className="text-[9px] text-slate-400 text-center pt-1 border-t border-slate-100">
+                Space: Play/Pause | W/S: Speed | A/D: Step | +/-: Zoom | R: Restart
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed demo panel button */}
+      {isDemoMode && !showDemoPanel && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+          <button
+            onClick={() => setShowDemoPanel(true)}
+            className="bg-[#6633BB] text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 hover:bg-[#5522AA] transition-colors"
+          >
+            <ChevronUp className="w-4 h-4" />
+            <span className="text-sm font-medium">Show Controls</span>
+          </button>
         </div>
       )}
     </>
