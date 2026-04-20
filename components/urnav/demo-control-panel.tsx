@@ -92,7 +92,7 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
   return (
     <div
       className={cn(
-        "absolute bottom-0 left-0 right-0 bg-[#0a1220] border-t border-[#1e3a5c] rounded-t-xl",
+        "absolute bottom-0 left-0 right-0 bg-white border-t border-[#D0E4F7] rounded-t-[20px] shadow-[0_-4px_16px_rgba(0,34,85,0.12)]",
         "transition-transform duration-300 ease-out",
         isVisible ? "translate-y-0" : "translate-y-full"
       )}
@@ -100,13 +100,13 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
     >
       {/* Handle bar */}
       <div className="flex justify-center pt-2 pb-1">
-        <div className="w-10 h-1 bg-[#1e3a5c] rounded-full" />
+        <div className="w-10 h-1 bg-[#D0E4F7] rounded-full" />
       </div>
 
       <div className="px-4 pb-4 overflow-y-auto" style={{ maxHeight: "calc(60vh - 40px)" }}>
         {/* ROW 1 - Route Selector */}
         <div className="mb-4">
-          <p className="text-[10px] text-[#4a6a8a] mb-2">Choose demo route</p>
+          <p className="text-[10px] text-[#4466AA] mb-2 font-medium">Choose demo route</p>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {DEMO_ROUTES.map((route) => (
               <button
@@ -115,8 +115,8 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[11px] whitespace-nowrap transition-colors",
                   selectedRoute === route.id
-                    ? "bg-[#c84bff] text-white border-transparent"
-                    : "bg-[#1a2f4a] border border-[#1e3a5c] text-[#8ab4d4] hover:bg-[#1e3a5c]"
+                    ? "bg-[#0066CC] text-white"
+                    : "bg-[#E8F3FF] border border-[#D0E4F7] text-[#0066CC] hover:bg-[#D0E4F7]"
                 )}
               >
                 {route.id}: {route.label}
@@ -131,7 +131,7 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             variant="outline"
             size="sm"
             onClick={handleReset}
-            className="h-8 w-9 bg-[#1a2f4a] border-[#1e3a5c] text-[#8ab4d4] hover:bg-[#1e3a5c]"
+            className="h-9 w-9 bg-white border-[#D0E4F7] text-[#0066CC] hover:bg-[#E8F3FF] rounded-lg"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -139,7 +139,7 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             variant="outline"
             size="sm"
             onClick={handleStepBackward}
-            className="h-8 w-9 bg-[#1a2f4a] border-[#1e3a5c] text-[#8ab4d4] hover:bg-[#1e3a5c]"
+            className="h-9 w-9 bg-white border-[#D0E4F7] text-[#0066CC] hover:bg-[#E8F3FF] rounded-lg"
           >
             <SkipBack className="h-4 w-4" />
           </Button>
@@ -147,8 +147,8 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             size="sm"
             onClick={handlePlayPause}
             className={cn(
-              "h-8 w-12 text-white font-semibold",
-              isPlaying ? "bg-[#c84bff] hover:bg-[#b03ee6]" : "bg-[#1a3a1a] hover:bg-[#1d4a1d]"
+              "h-9 w-12 text-white font-semibold rounded-lg",
+              isPlaying ? "bg-[#CC2200] hover:bg-[#AA1100]" : "bg-[#00883A] hover:bg-[#006A2E]"
             )}
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -157,14 +157,14 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             variant="outline"
             size="sm"
             onClick={handleStepForward}
-            className="h-8 w-9 bg-[#1a2f4a] border-[#1e3a5c] text-[#8ab4d4] hover:bg-[#1e3a5c]"
+            className="h-9 w-9 bg-white border-[#D0E4F7] text-[#0066CC] hover:bg-[#E8F3FF] rounded-lg"
           >
             <SkipForward className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 w-10 bg-[#1a2040] border-[#2a2060] text-[#c84bff] hover:bg-[#2a2060]"
+            className="h-9 w-10 bg-[#EEE8FF] border-[#6633BB] text-[#6633BB] hover:bg-[#DDD0FF] rounded-lg"
           >
             <Gauge className="h-3 w-3 mr-0.5" />
             <span className="text-[10px]">{speed}x</span>
@@ -174,8 +174,8 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
         {/* ROW 3 - Speed Slider */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] text-[#4a6a8a]">Walk speed</span>
-            <span className="text-[10px] text-[#8ab4d4]">{speedMps} m/s</span>
+            <span className="text-[10px] text-[#4466AA] font-medium">Walk speed</span>
+            <span className="text-[10px] text-[#0066CC] font-medium">{speedMps} m/s</span>
           </div>
           <Slider
             value={[speed]}
@@ -183,15 +183,15 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             max={10}
             step={0.5}
             onValueChange={handleSpeedChange}
-            className="[&_[role=slider]]:bg-[#c84bff] [&_.range]:bg-[#c84bff]"
+            className="[&_[role=slider]]:bg-[#0066CC] [&_[role=slider]]:border-[#0066CC]"
           />
         </div>
 
         {/* ROW 4 - Step Size */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] text-[#4a6a8a]">Step size</span>
-            <span className="text-[10px] text-[#8ab4d4]">{stepSize.toFixed(1)} m</span>
+            <span className="text-[10px] text-[#4466AA] font-medium">Step size</span>
+            <span className="text-[10px] text-[#0066CC] font-medium">{stepSize.toFixed(1)} m</span>
           </div>
           <Slider
             value={[stepSize]}
@@ -199,24 +199,24 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
             max={3.0}
             step={0.1}
             onValueChange={handleStepSizeChange}
-            className="[&_[role=slider]]:bg-[#c84bff] [&_.range]:bg-[#c84bff]"
+            className="[&_[role=slider]]:bg-[#0066CC] [&_[role=slider]]:border-[#0066CC]"
           />
         </div>
 
         {/* ROW 5 - Noise Control */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] text-[#4a6a8a]">Wi-Fi noise</span>
+            <span className="text-[10px] text-[#4466AA] font-medium">Wi-Fi noise</span>
             <button
               onClick={handleNoiseToggle}
               className={cn(
-                "px-2 py-0.5 rounded-full text-[10px] transition-colors",
+                "px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors",
                 noiseEnabled
-                  ? "bg-[#1d3a2a] text-[#1d9e75]"
-                  : "bg-[#1a1a2a] text-[#4a6a8a]"
+                  ? "bg-[#DCF0E8] text-[#00883A]"
+                  : "bg-[#F5F8FC] text-[#8899BB]"
               )}
             >
-              {noiseEnabled ? "on" : "off"}
+              {noiseEnabled ? "ON" : "OFF"}
             </button>
           </div>
           {noiseEnabled && (
@@ -227,10 +227,10 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
                 max={30}
                 step={1}
                 onValueChange={handleNoiseLevelChange}
-                className="[&_[role=slider]]:bg-[#1d9e75] [&_.range]:bg-[#1d9e75]"
+                className="[&_[role=slider]]:bg-[#00883A] [&_[role=slider]]:border-[#00883A]"
               />
               <div className="flex justify-end mt-1">
-                <span className="text-[9px] text-[#4a6a8a]">{noiseLevel} noise level</span>
+                <span className="text-[9px] text-[#8899BB]">{noiseLevel} noise level</span>
               </div>
             </div>
           )}
@@ -238,23 +238,23 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
 
         {/* ROW 6 - Layer Visibility Toggles */}
         <div className="mb-4">
-          <p className="text-[10px] text-[#4a6a8a] mb-2">Show layers</p>
+          <p className="text-[10px] text-[#4466AA] font-medium mb-2">Show layers</p>
           <div className="flex flex-wrap gap-1.5">
             {[
-              { label: "Position trail", value: showTrail, setter: setShowTrail, color: "#c84bff" },
-              { label: "Wi-Fi dot", value: showWifi, setter: setShowWifi, color: "#378add" },
-              { label: "Kalman dot", value: showKalman, setter: setShowKalman, color: "#ef9f27" },
-              { label: "Path nodes", value: showNodes, setter: setShowNodes, color: "#1d9e75" },
-              { label: "Path edges", value: showEdges, setter: setShowEdges, color: "#1d9e75" },
+              { label: "Position trail", value: showTrail, setter: setShowTrail, color: "#6633BB" },
+              { label: "Wi-Fi dot", value: showWifi, setter: setShowWifi, color: "#0066CC" },
+              { label: "Kalman dot", value: showKalman, setter: setShowKalman, color: "#F5A800" },
+              { label: "Path nodes", value: showNodes, setter: setShowNodes, color: "#00883A" },
+              { label: "Path edges", value: showEdges, setter: setShowEdges, color: "#00883A" },
             ].map((toggle) => (
               <button
                 key={toggle.label}
                 onClick={() => toggle.setter(!toggle.value)}
                 className={cn(
-                  "px-2 py-1 rounded text-[11px] transition-colors",
+                  "px-2 py-1 rounded-lg text-[11px] transition-colors font-medium",
                   toggle.value
-                    ? `border bg-opacity-10`
-                    : "border border-[#1e3a5c] bg-[#1a2f4a] text-[#4a6a8a]"
+                    ? "border"
+                    : "border border-[#D0E4F7] bg-white text-[#8899BB]"
                 )}
                 style={
                   toggle.value
@@ -282,10 +282,10 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
           ].map((stat) => (
             <div
               key={stat.label}
-              className="bg-[#111d2e] border border-[#1e3a5c] rounded-lg p-2 text-center"
+              className="bg-[#F5F8FC] border border-[#D0E4F7] rounded-lg p-2 text-center"
             >
-              <p className="text-[9px] text-[#4a6a8a]">{stat.label}</p>
-              <p className="text-[13px] font-medium text-[#e8f0fe]">
+              <p className="text-[9px] text-[#8899BB]">{stat.label}</p>
+              <p className="text-[13px] font-semibold text-[#002255]">
                 {stat.value}
                 {stat.unit}
               </p>
@@ -294,12 +294,12 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
         </div>
 
         {/* ROW 8 - Progress Bar */}
-        <div className="h-1 bg-[#1a2f4a] rounded-full overflow-hidden">
+        <div className="h-1.5 bg-[#E8F3FF] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-100"
             style={{
               width: `${(state?.totalProgress || 0) * 100}%`,
-              background: "linear-gradient(to right, #1d9e75, #c84bff)",
+              background: "linear-gradient(to right, #0066CC, #6633BB)",
             }}
           />
         </div>
@@ -307,11 +307,3 @@ export function DemoControlPanel({ isVisible, onClose }: DemoControlPanelProps) 
     </div>
   );
 }
-
-// Changes:
-// - Created comprehensive demo control panel with all 8 rows from spec
-// - Route selector chips, transport controls, speed/step sliders
-// - Noise control toggle and slider
-// - Layer visibility toggles with dynamic colors
-// - Stats grid showing position and progress
-// - Progress bar with gradient fill

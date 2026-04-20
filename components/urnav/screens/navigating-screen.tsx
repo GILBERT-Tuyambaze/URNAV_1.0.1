@@ -1,49 +1,53 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Volume2, VolumeX, RotateCcw, Navigation } from "lucide-react";
+import { X, Volume2, VolumeX, RotateCcw, Navigation, Play, Pause, ChevronUp, ChevronDown, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampusMapCanvas } from "@/components/urnav/campus-map-canvas";
 import { FloorSwitcher } from "@/components/urnav/floor-switcher";
-import { MapLegend } from "@/components/urnav/map-legend";
 import { demoController, type DemoState } from "@/lib/demo-controller";
 import { GATES, ALL_BUILDINGS } from "@/lib/campus-data";
 
 interface NavigatingScreenProps {
   destinationBuildingId?: string;
+  destinationRoomId?: string;
   onCancel: () => void;
   onArrival: () => void;
 }
 
 // Demo instructions generator
 function generateInstructions(progress: number, destinationName: string) {
-  if (progress < 0.2) {
-    return { text: "Head north on the main road", direction: "straight" as const, distance: 80 };
-  } else if (progress < 0.4) {
-    return { text: "Continue straight past the Administration Block", direction: "straight" as const, distance: 60 };
-  } else if (progress < 0.6) {
-    return { text: "Turn right at the central junction", direction: "right" as const, distance: 40 };
-  } else if (progress < 0.8) {
-    return { text: `${destinationName} is on your left`, direction: "left" as const, distance: 20 };
+  if (progress < 0.15) {
+    return { text: "Head north on the main road", direction: "straight" as const, distance: 85 };
+  } else if (progress < 0.35) {
+    return { text: "Continue past Administration Block", direction: "straight" as const, distance: 65 };
+  } else if (progress < 0.55) {
+    return { text: "Turn right at central junction", direction: "right" as const, distance: 45 };
+  } else if (progress < 0.75) {
+    return { text: `${destinationName} is on your left`, direction: "left" as const, distance: 25 };
   } else {
-    return { text: `Arriving at ${destinationName}`, direction: "arrive" as const, distance: 0 };
+    return { text: `Arriving at ${destinationName}`, direction: "arrive" as const, distance: 5 };
   }
 }
 
-export function NavigatingScreen({ destinationBuildingId, onCancel, onArrival }: NavigatingScreenProps) {
+export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onCancel, onArrival }: NavigatingScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [currentFloor, setCurrentFloor] = useState(1);
   const [userPosition, setUserPosition] = useState({ x: GATES[0].position.x, y: GATES[0].position.y });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [demoState, setDemoState] = useState<DemoState | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1.5);
+  const [panelExpanded, setPanelExpanded] = useState(false);
 
-  // Get destination building
+  // Get destination building and room
   const destinationBuilding = ALL_BUILDINGS.find(b => b.id === destinationBuildingId);
-  const destinationName = destinationBuilding?.name || "Destination";
-  const targetFloor = destinationBuilding?.floors ? 1 : 1;
+  const destinationRoom = destinationBuilding?.rooms.find(r => r.id === destinationRoomId);
+  const destinationName = destinationRoom?.name || destinationBuilding?.name || "Destination";
+  const targetFloor = destinationRoom?.floor || 1;
 
-  // Get container dimensions
+  // Get container dimensions - use full available space
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
@@ -62,11 +66,14 @@ export function NavigatingScreen({ destinationBuildingId, onCancel, onArrival }:
   useEffect(() => {
     demoController.setRoute("A");
     demoController.play();
+    setIsPlaying(true);
 
     const unsubscribe = demoController.subscribe((state) => {
       setDemoState(state);
       setUserPosition({ x: state.truePos.x, y: state.truePos.y });
       setCurrentFloor(state.currentFloor);
+      setSpeed(demoController.getSpeed());
+      setIsPlaying(demoController.getIsPlaying());
 
       // Check for arrival
       if (state.totalProgress >= 0.98) {
@@ -99,38 +106,43 @@ export function NavigatingScreen({ destinationBuildingId, onCancel, onArrival }:
     }
   }, [currentInstruction.text, voiceEnabled]);
 
+  const handlePlayPause = useCallback(() => {
+    demoController.toggle();
+    setIsPlaying(demoController.getIsPlaying());
+  }, []);
+
   const handleRestart = useCallback(() => {
     demoController.reset();
     demoController.play();
+    setIsPlaying(true);
   }, []);
+
+  const handleSpeedUp = useCallback(() => {
+    const newSpeed = Math.min(10, speed + 0.5);
+    demoController.setSpeed(newSpeed);
+    setSpeed(newSpeed);
+  }, [speed]);
+
+  const handleSpeedDown = useCallback(() => {
+    const newSpeed = Math.max(0.5, speed - 0.5);
+    demoController.setSpeed(newSpeed);
+    setSpeed(newSpeed);
+  }, [speed]);
 
   // Get direction icon
   const getDirectionIcon = () => {
     switch (currentInstruction.direction) {
-      case "left": return "↰";
-      case "right": return "↱";
-      case "straight": return "↑";
-      case "arrive": return "📍";
-      default: return "↑";
+      case "left": return <span className="text-2xl">{"↰"}</span>;
+      case "right": return <span className="text-2xl">{"↱"}</span>;
+      case "straight": return <span className="text-2xl">{"↑"}</span>;
+      case "arrive": return <span className="text-2xl">{"📍"}</span>;
+      default: return <span className="text-2xl">{"↑"}</span>;
     }
   };
 
-  // Check if navigating to different floor
-  const isMultiFloor = currentFloor !== targetFloor;
-
   return (
-    <div className="h-full flex flex-col bg-[#0a1a0a] relative">
-      {/* Multi-floor instruction header */}
-      {isMultiFloor && currentInstruction.direction === "straight" && (
-        <div className="absolute top-0 left-0 right-0 z-30 bg-[#1a1a2a] text-white py-3 px-4">
-          <p className="text-center font-medium">
-            Exit at the {targetFloor}
-            <sup>{targetFloor === 1 ? "st" : targetFloor === 2 ? "nd" : targetFloor === 3 ? "rd" : "th"}</sup> floor
-          </p>
-        </div>
-      )}
-
-      {/* Map Container - Full screen */}
+    <div className="h-full flex flex-col bg-[#E8F0FA] relative overflow-hidden">
+      {/* Map Container - Takes all available space */}
       <div ref={containerRef} className="flex-1 relative min-h-0">
         {dimensions.width > 0 && dimensions.height > 0 && (
           <CampusMapCanvas
@@ -145,11 +157,8 @@ export function NavigatingScreen({ destinationBuildingId, onCancel, onArrival }:
           />
         )}
 
-        {/* Map Legend */}
-        <MapLegend />
-
-        {/* Floor Switcher - positioned on left side */}
-        <div className="absolute bottom-40 left-4 z-10">
+        {/* Floor Switcher - left side */}
+        <div className="absolute bottom-24 left-3 z-10">
           <FloorSwitcher
             floors={[3, 2, 1, 0]}
             currentFloor={currentFloor}
@@ -158,80 +167,114 @@ export function NavigatingScreen({ destinationBuildingId, onCancel, onArrival }:
           />
         </div>
 
-        {/* Elevator indicator when changing floors */}
-        {isMultiFloor && progress > 0.4 && progress < 0.6 && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-            <div className="bg-[#378add] text-white px-4 py-3 rounded-lg flex items-center gap-3 shadow-lg">
-              <div className="w-10 h-10 bg-white/20 rounded-md flex items-center justify-center">
-                <span className="text-xl">🛗</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-bold">↑</span>
-                <span className="text-xl font-bold">{targetFloor}</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Right side demo controls */}
+        <div className="absolute bottom-24 right-3 z-10 flex flex-col gap-2">
+          {/* Play/Pause */}
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={handlePlayPause}
+            className="h-11 w-11 rounded-full shadow-lg bg-white border-2 border-[#C8D8E8]"
+          >
+            {isPlaying ? <Pause className="h-5 w-5 text-[#0066CC]" /> : <Play className="h-5 w-5 text-[#0066CC]" />}
+          </Button>
 
-        {/* Right side controls */}
-        <div className="absolute bottom-40 right-4 z-10 flex flex-col gap-2">
+          {/* Speed controls */}
+          <div className="flex flex-col bg-white rounded-full shadow-lg border-2 border-[#C8D8E8] overflow-hidden">
+            <button
+              onClick={handleSpeedUp}
+              className="h-9 w-11 flex items-center justify-center hover:bg-[#E8F0FA] transition-colors"
+            >
+              <Plus className="h-4 w-4 text-[#0066CC]" />
+            </button>
+            <div className="h-8 w-11 flex items-center justify-center text-xs font-semibold text-[#2a4a6a] bg-[#F0F5FA]">
+              {speed.toFixed(1)}x
+            </div>
+            <button
+              onClick={handleSpeedDown}
+              className="h-9 w-11 flex items-center justify-center hover:bg-[#E8F0FA] transition-colors"
+            >
+              <Minus className="h-4 w-4 text-[#0066CC]" />
+            </button>
+          </div>
+
           {/* Voice toggle */}
           <Button
             variant="secondary"
             size="icon"
             onClick={() => setVoiceEnabled(!voiceEnabled)}
-            className="h-12 w-12 rounded-full shadow-md bg-white border border-gray-200"
+            className="h-11 w-11 rounded-full shadow-lg bg-white border-2 border-[#C8D8E8]"
           >
-            {voiceEnabled ? <Volume2 className="h-5 w-5 text-gray-700" /> : <VolumeX className="h-5 w-5 text-gray-700" />}
+            {voiceEnabled ? <Volume2 className="h-5 w-5 text-[#0066CC]" /> : <VolumeX className="h-5 w-5 text-[#8899AA]" />}
           </Button>
 
-          {/* Restart button */}
+          {/* Restart */}
           <Button
             variant="secondary"
             size="icon"
             onClick={handleRestart}
-            className="h-12 w-12 rounded-full shadow-md bg-white border border-gray-200"
+            className="h-11 w-11 rounded-full shadow-lg bg-white border-2 border-[#C8D8E8]"
           >
-            <RotateCcw className="h-5 w-5 text-gray-700" />
+            <RotateCcw className="h-5 w-5 text-[#0066CC]" />
           </Button>
         </div>
       </div>
 
-      {/* Bottom navigation panel - orange theme like reference images */}
-      <div className="shrink-0 bg-[#f97316] text-white">
-        {/* Instruction card */}
-        <div className="px-4 py-3 flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-2xl">
+      {/* Compact Bottom Navigation Panel */}
+      <div className={`shrink-0 bg-[#0055AA] text-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,34,85,0.25)] transition-all duration-300 ${panelExpanded ? 'max-h-48' : 'max-h-32'}`}>
+        {/* Expand/collapse handle */}
+        <button 
+          onClick={() => setPanelExpanded(!panelExpanded)}
+          className="w-full flex items-center justify-center py-1 hover:bg-white/10 transition-colors"
+        >
+          {panelExpanded ? <ChevronDown className="h-4 w-4 opacity-60" /> : <ChevronUp className="h-4 w-4 opacity-60" />}
+        </button>
+
+        {/* Instruction row */}
+        <div className="px-4 pb-3 flex items-center gap-3">
+          {/* Direction icon */}
+          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
             {getDirectionIcon()}
           </div>
+          
+          {/* Instruction text */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-base truncate">{currentInstruction.text}</p>
-            <p className="text-sm opacity-80">
-              {remainingDistance > 0 ? `${remainingDistance.toFixed(1)} ft remaining` : "Almost there"}
+            <p className="font-semibold text-sm leading-tight truncate">{currentInstruction.text}</p>
+            <p className="text-xs opacity-75 mt-0.5">
+              {remainingDistance > 0 ? `${remainingDistance}m remaining` : "You have arrived"}
             </p>
+          </div>
+
+          {/* Distance/floor badge */}
+          <div className="flex flex-col items-end shrink-0">
+            <span className="text-lg font-bold">{remainingDistance}m</span>
+            <span className="text-xs opacity-75 flex items-center gap-1">
+              <Navigation className="h-3 w-3" />
+              F{targetFloor}
+            </span>
           </div>
         </div>
 
-        {/* Destination bar */}
-        <div className="px-4 py-3 bg-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-white rounded-sm" />
-            <span className="font-medium">{destinationName}</span>
+        {/* Expandable section */}
+        {panelExpanded && (
+          <div className="px-4 pb-3 pt-1 border-t border-white/15">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 bg-[#6633BB] rounded-sm" />
+                <span className="font-medium">{destinationName}</span>
+              </div>
+              <span className="opacity-75">Building #{destinationBuilding?.number || '?'}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span>{remainingDistance.toFixed(1)} ft</span>
-            <Navigation className="h-4 w-4" />
-            <span>{targetFloor}</span>
-          </div>
-        </div>
+        )}
 
         {/* Cancel button */}
         <button
           onClick={onCancel}
-          className="w-full py-3 flex items-center justify-center gap-2 text-sm font-medium hover:bg-white/10 transition-colors"
+          className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium hover:bg-white/10 transition-colors border-t border-white/15"
         >
           <X className="h-4 w-4" />
-          Cancel Navigation
+          Cancel
         </button>
       </div>
     </div>

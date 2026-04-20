@@ -3,42 +3,83 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* University of Rwanda Brand Colors - LIGHT MODE ONLY */
 :root {
-  --background: oklch(0.97 0.005 90);
-  --foreground: oklch(0.25 0.01 90);
+  /* UR Primary Colors */
+  --ur-blue: #0066CC;
+  --ur-blue-dark: #004499;
+  --ur-blue-light: #E8F3FF;
+  --ur-blue-mid: #3388DD;
+  --ur-navy: #002255;
+  --ur-white: #FFFFFF;
+  --ur-off-white: #F5F8FC;
+  --ur-border: #D0E4F7;
+  
+  /* UR Accent Colors */
+  --ur-green: #00883A;
+  --ur-yellow: #F5A800;
+  --ur-red: #CC2200;
+  --ur-purple: #6633BB;
+  
+  /* Building Type Colors */
+  --building-academic-fill: #DCEEFF;
+  --building-academic-stroke: #0066CC;
+  --building-hostel-fill: #DCF0E8;
+  --building-hostel-stroke: #00883A;
+  --building-admin-fill: #EEE8FF;
+  --building-admin-stroke: #6633BB;
+  --building-service-fill: #FFF3DC;
+  --building-service-stroke: #F5A800;
+  --building-facility-fill: #FFE8DC;
+  --building-facility-stroke: #CC4400;
+  --building-conference-fill: #FFE8F5;
+  --building-conference-stroke: #CC0066;
+  --building-outdoor-fill: #E8F5E8;
+  --building-outdoor-stroke: #00883A;
+  
+  /* Map Colors */
+  --map-background: #F0F5FF;
+  --map-garden: #E8F5E0;
+  --map-road: #D8D8E8;
+  --map-street: #C8C8D8;
+  
+  /* shadcn/ui base tokens - Light Theme */
+  --background: oklch(0.985 0.005 230);
+  --foreground: oklch(0.15 0.03 240);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.01 90);
+  --card-foreground: oklch(0.15 0.03 240);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.01 90);
-  --primary: oklch(0.68 0.18 45);
+  --popover-foreground: oklch(0.15 0.03 240);
+  --primary: oklch(0.55 0.2 240);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.005 90);
-  --secondary-foreground: oklch(0.25 0.01 90);
-  --muted: oklch(0.92 0.005 90);
-  --muted-foreground: oklch(0.55 0.01 90);
-  --accent: oklch(0.72 0.12 195);
-  --accent-foreground: oklch(0.15 0.03 195);
-  --destructive: oklch(0.577 0.245 27.325);
+  --secondary: oklch(0.95 0.01 230);
+  --secondary-foreground: oklch(0.15 0.03 240);
+  --muted: oklch(0.94 0.01 230);
+  --muted-foreground: oklch(0.45 0.02 240);
+  --accent: oklch(0.55 0.15 150);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0.01 90);
-  --input: oklch(0.95 0.005 90);
-  --ring: oklch(0.68 0.18 45);
-  --chart-1: oklch(0.68 0.18 45);
-  --chart-2: oklch(0.72 0.12 195);
-  --chart-3: oklch(0.55 0.15 260);
-  --chart-4: oklch(0.65 0.1 140);
-  --chart-5: oklch(0.6 0.15 320);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.98 0.003 90);
-  --sidebar-foreground: oklch(0.25 0.01 90);
-  --sidebar-primary: oklch(0.68 0.18 45);
+  --border: oklch(0.88 0.02 230);
+  --input: oklch(0.97 0.005 230);
+  --ring: oklch(0.55 0.2 240);
+  --chart-1: oklch(0.55 0.2 240);
+  --chart-2: oklch(0.55 0.15 150);
+  --chart-3: oklch(0.65 0.15 45);
+  --chart-4: oklch(0.5 0.15 290);
+  --chart-5: oklch(0.55 0.22 25);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.98 0.005 230);
+  --sidebar-foreground: oklch(0.15 0.03 240);
+  --sidebar-primary: oklch(0.55 0.2 240);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.95 0.005 90);
-  --sidebar-accent-foreground: oklch(0.25 0.01 90);
-  --sidebar-border: oklch(0.85 0.01 90);
-  --sidebar-ring: oklch(0.68 0.18 45);
+  --sidebar-accent: oklch(0.95 0.01 230);
+  --sidebar-accent-foreground: oklch(0.15 0.03 240);
+  --sidebar-border: oklch(0.88 0.02 230);
+  --sidebar-ring: oklch(0.55 0.2 240);
 }
 
+/* Dark mode - not used, but kept for compatibility */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -75,8 +116,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: 'Inter', 'Geist', 'Geist Fallback', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -113,6 +154,17 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* UR Custom Colors */
+  --color-ur-blue: var(--ur-blue);
+  --color-ur-blue-dark: var(--ur-blue-dark);
+  --color-ur-blue-light: var(--ur-blue-light);
+  --color-ur-blue-mid: var(--ur-blue-mid);
+  --color-ur-navy: var(--ur-navy);
+  --color-ur-green: var(--ur-green);
+  --color-ur-yellow: var(--ur-yellow);
+  --color-ur-red: var(--ur-red);
+  --color-ur-purple: var(--ur-purple);
 }
 
 @layer base {
@@ -121,5 +173,43 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  html {
+    @apply bg-[#F5F8FC];
+  }
+}
+
+/* URNAV Custom Styles */
+@layer components {
+  .urnav-card {
+    @apply bg-white border border-[#D0E4F7] rounded-xl shadow-sm;
+  }
+  
+  .urnav-button-primary {
+    @apply bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg px-4 py-2 font-medium transition-colors;
+  }
+  
+  .urnav-button-secondary {
+    @apply bg-[#E8F3FF] text-[#0066CC] border border-[#0066CC] hover:bg-[#D0E4F7] rounded-lg px-4 py-2 font-medium transition-colors;
+  }
+  
+  .urnav-search-bar {
+    @apply bg-white border-2 border-[#0066CC] rounded-xl px-4 py-3 w-full text-[#002255] placeholder:text-[#8899BB] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20;
+  }
+  
+  .urnav-bottom-sheet {
+    @apply bg-white rounded-t-[20px] shadow-[0_-4px_16px_rgba(0,34,85,0.12)];
+  }
+  
+  .urnav-text-primary {
+    @apply text-[#002255];
+  }
+  
+  .urnav-text-secondary {
+    @apply text-[#4466AA];
+  }
+  
+  .urnav-text-hint {
+    @apply text-[#8899BB];
   }
 }

@@ -35,7 +35,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-primary via-primary to-orange-600 flex flex-col items-center justify-center text-primary-foreground z-50">
+    <div className="fixed inset-0 bg-gradient-to-br from-[#0066CC] via-[#004499] to-[#002255] flex flex-col items-center justify-center text-white z-50">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-20 left-10 w-32 h-32 bg-white/10 rounded-full blur-3xl animate-pulse" />
@@ -45,7 +45,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
       {/* Logo */}
       <div className="relative z-10 flex flex-col items-center">
-        <div className="w-28 h-28 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/20">
+        <div className="w-28 h-28 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
           <Navigation className="w-14 h-14 text-white" />
         </div>
         
@@ -79,7 +79,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
       {/* Version */}
       <div className="absolute bottom-8 text-white/50 text-xs">
-        v1.0 Demo - Nyarugenge Campus
+        v1.0 Demo - UR Nyarugenge Campus
       </div>
     </div>
   );

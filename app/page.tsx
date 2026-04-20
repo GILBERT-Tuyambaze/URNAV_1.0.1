@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { URNAVApp } from "@/components/urnav/urnav-app";
 
 export default function Page() {
@@ -41,6 +42,12 @@ export default function Page() {
             <span className="px-2 py-1 bg-muted rounded-full">IMU Tracking</span>
             <span className="px-2 py-1 bg-muted rounded-full">A* Pathfinding</span>
           </div>
+          <Link 
+            href="/checklist" 
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            View Compliance Checklist
+          </Link>
         </div>
       </div>
     </main>

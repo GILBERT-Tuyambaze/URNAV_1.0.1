@@ -16,7 +16,7 @@ export function FloorSwitcher({
   onFloorSelect,
 }: FloorSwitcherProps) {
   return (
-    <div className="flex flex-col bg-card/95 backdrop-blur-sm rounded-lg border border-border shadow-md overflow-hidden">
+    <div className="flex flex-col bg-white rounded-xl border border-[#D0E4F7] shadow-lg overflow-hidden">
       {floors.map((floor) => {
         const isActive = floor === currentFloor;
         const isDetected = floor === detectedFloor;
@@ -26,11 +26,11 @@ export function FloorSwitcher({
             key={floor}
             onClick={() => onFloorSelect(floor)}
             className={cn(
-              "w-10 h-10 flex items-center justify-center text-sm font-semibold transition-all border-b border-border last:border-b-0",
+              "w-11 h-11 flex items-center justify-center text-sm font-semibold transition-all border-b border-[#D0E4F7] last:border-b-0",
               isActive 
-                ? "bg-primary text-primary-foreground" 
-                : "bg-card text-foreground hover:bg-muted",
-              isDetected && !isActive && "ring-2 ring-inset ring-primary/50"
+                ? "bg-[#0066CC] text-white" 
+                : "bg-white text-[#002255] hover:bg-[#E8F3FF]",
+              isDetected && !isActive && "ring-2 ring-inset ring-[#0066CC]/50"
             )}
           >
             {floor}
@@ -38,7 +38,7 @@ export function FloorSwitcher({
         );
       })}
       {/* Floor label */}
-      <div className="w-10 h-6 flex items-center justify-center text-[10px] text-muted-foreground bg-muted/50">
+      <div className="w-11 h-6 flex items-center justify-center text-[10px] text-[#8899BB] bg-[#F5F8FC]">
         Floor
       </div>
     </div>

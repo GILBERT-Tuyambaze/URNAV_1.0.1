@@ -75,21 +75,21 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0a1a0a] relative">
+    <div className="h-full flex flex-col bg-[#F5F8FC] relative">
       {/* Search Bar - Floating over map */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 bg-[#f97316] text-white hover:bg-[#ea580c] rounded-md shrink-0"
+          className="h-10 w-10 bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg shrink-0 shadow-sm"
         >
           <Menu className="h-5 w-5" />
         </Button>
         <button
           onClick={onSearchFocus}
-          className="flex-1 h-12 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-md px-4 text-left shadow-sm"
+          className="flex-1 h-12 bg-white border-2 border-[#0066CC] rounded-xl px-4 text-left shadow-sm"
         >
-          <span className="text-gray-400 text-sm">Search...</span>
+          <span className="text-[#8899BB] text-sm">Search rooms, buildings...</span>
         </button>
       </div>
 
@@ -133,7 +133,7 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
               variant="secondary"
               size="icon"
               onClick={handleStartDemo}
-              className="h-12 w-12 rounded-full shadow-md bg-[#c84bff] hover:bg-[#b03ee6] border-none"
+              className="h-12 w-12 rounded-full shadow-lg bg-[#6633BB] hover:bg-[#5522AA] border-none"
               title="Start Demo"
             >
               <Play className="h-5 w-5 text-white" />
@@ -145,9 +145,9 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
             variant="secondary"
             size="icon"
             onClick={() => setIsLocating(true)}
-            className="h-12 w-12 rounded-full shadow-md bg-white border border-gray-200"
+            className="h-12 w-12 rounded-full shadow-lg bg-white border-2 border-[#D0E4F7]"
           >
-            <Crosshair className="h-5 w-5 text-gray-700" />
+            <Crosshair className="h-5 w-5 text-[#0066CC]" />
           </Button>
 
           {/* Navigation mode indicator */}
@@ -161,8 +161,8 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
                 demoController.pause();
               }
             }}
-            className={`h-12 w-12 rounded-full shadow-md ${
-              isDemoMode ? "bg-[#1d9e75]" : "bg-[#f97316]"
+            className={`h-12 w-12 rounded-full shadow-lg ${
+              isDemoMode ? "bg-[#00883A]" : "bg-[#0066CC]"
             }`}
           >
             {isDemoMode ? (
@@ -176,19 +176,19 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
         {/* Position info card */}
         <div className="absolute bottom-4 left-4 right-4 z-10">
           {!showDemoPanel && (
-            <div className="bg-white/95 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-200 shadow-sm">
+            <div className="bg-white px-4 py-3 rounded-xl border border-[#D0E4F7] shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div
                     className={`w-2.5 h-2.5 rounded-full ${
                       isDemoMode
-                        ? "bg-[#1d9e75]"
+                        ? "bg-[#0066CC]"
                         : isLocating
-                        ? "bg-green-500"
-                        : "bg-amber-500"
+                        ? "bg-[#00883A]"
+                        : "bg-[#F5A800]"
                     } animate-pulse`}
                   />
-                  <span className="text-sm font-medium text-gray-800">
+                  <span className="text-sm font-medium text-[#002255]">
                     {isDemoMode
                       ? "Demo Mode"
                       : isLocating
@@ -196,7 +196,7 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
                       : "Location Paused"}
                   </span>
                 </div>
-                <span className="text-xs text-gray-500">Floor {currentFloor}</span>
+                <span className="text-xs text-[#4466AA]">Floor {currentFloor}</span>
               </div>
             </div>
           )}

@@ -9,23 +9,23 @@ interface MapLegendProps {
 }
 
 const LEGEND_ITEMS = [
-  { icon: "circle", color: "#639922", label: "Gate" },
-  { icon: "square", color: "#3d1515", label: "Campus Building" },
-  { icon: "square", color: "#1a3020", label: "Student Hostel" },
-  { icon: "square", color: "#2a1a4a", label: "Admin Building" },
-  { icon: "square", color: "#2a2010", label: "Facility" },
-  { icon: "square", color: "#2a0a1a", label: "Conference Hall" },
-  { icon: "P", color: "#378add", label: "Parking Area" },
-  { icon: "line", color: "#1d9e75", label: "Footpath" },
-  { icon: "hatch", color: "#d4537e", label: "KCEV Area" },
-  { icon: "x", color: "#3a3000", label: "Construction Site" },
-  { icon: "circle", color: "#c84bff", label: "Your route" },
-  { icon: "circle", color: "#c84bff", label: "Your position" },
+  { icon: "circle", color: "#00883A", label: "Gate" },
+  { icon: "square", color: "#DCEEFF", stroke: "#0066CC", label: "Academic" },
+  { icon: "square", color: "#DCF0E8", stroke: "#00883A", label: "Hostel" },
+  { icon: "square", color: "#EEE8FF", stroke: "#6633BB", label: "Admin" },
+  { icon: "square", color: "#FFF3DC", stroke: "#F5A800", label: "Service" },
+  { icon: "square", color: "#FFE8F5", stroke: "#CC0066", label: "Conference" },
+  { icon: "P", color: "#0066CC", label: "Parking" },
+  { icon: "line", color: "#D8D8E8", label: "Road" },
+  { icon: "hatch", color: "#CC0066", label: "KCEV Area" },
+  { icon: "x", color: "#F5A800", label: "Construction" },
+  { icon: "circle", color: "#6633BB", label: "Your route" },
+  { icon: "circle", color: "#0066CC", label: "Your position" },
 ];
 
 const DEMO_LEGEND_ITEMS = [
-  { icon: "circle-ring", color: "#378add", label: "Wi-Fi fix (demo)" },
-  { icon: "diamond", color: "#ef9f27", label: "Kalman estimate (demo)" },
+  { icon: "circle-ring", color: "#0066CC", label: "Wi-Fi fix (demo)" },
+  { icon: "diamond", color: "#F5A800", label: "Kalman (demo)" },
 ];
 
 export function MapLegend({ isDemoMode = false }: MapLegendProps) {
@@ -34,12 +34,12 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
   const items = isDemoMode ? [...LEGEND_ITEMS, ...DEMO_LEGEND_ITEMS] : LEGEND_ITEMS;
 
   return (
-    <div className="absolute bottom-4 left-4 z-10">
+    <div className="absolute top-20 right-4 z-10">
       {/* Collapsed state */}
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="w-8 h-8 rounded-full bg-[rgba(17,29,46,0.92)] border border-[#1e3a5c] flex items-center justify-center text-[#8ab4d4] hover:bg-[rgba(17,29,46,1)] transition-colors"
+          className="w-9 h-9 rounded-xl bg-white border border-[#D0E4F7] shadow-lg flex items-center justify-center text-[#0066CC] hover:bg-[#E8F3FF] transition-colors"
         >
           <Menu className="w-4 h-4" />
         </button>
@@ -49,16 +49,16 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
       {isExpanded && (
         <div
           className={cn(
-            "w-44 bg-[rgba(17,29,46,0.97)] border border-[#1e3a5c] rounded-xl p-3",
-            "animate-in slide-in-from-bottom-2 duration-200"
+            "w-40 bg-white border border-[#D0E4F7] rounded-xl p-3 shadow-lg",
+            "animate-in slide-in-from-right-2 duration-200"
           )}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] text-[#4a6a8a]">Map legend</span>
+            <span className="text-[11px] text-[#4466AA] font-medium">Map Legend</span>
             <button
               onClick={() => setIsExpanded(false)}
-              className="text-[#4a6a8a] hover:text-[#8ab4d4] transition-colors"
+              className="text-[#8899BB] hover:text-[#0066CC] transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -67,9 +67,9 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
           {/* Legend items */}
           <div className="space-y-1">
             {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 h-7">
+              <div key={i} className="flex items-center gap-2 h-6">
                 {/* Icon */}
-                <div className="w-3.5 flex items-center justify-center">
+                <div className="w-4 flex items-center justify-center">
                   {item.icon === "circle" && (
                     <div
                       className="w-2.5 h-2.5 rounded-full"
@@ -84,27 +84,27 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
                   )}
                   {item.icon === "square" && (
                     <div
-                      className="w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: item.color }}
+                      className="w-3 h-3 rounded-sm border"
+                      style={{ backgroundColor: item.color, borderColor: item.stroke || item.color }}
                     />
                   )}
                   {item.icon === "diamond" && (
                     <div
-                      className="w-2 h-2 rotate-45"
+                      className="w-2.5 h-2.5 rotate-45"
                       style={{ backgroundColor: item.color }}
                     />
                   )}
                   {item.icon === "line" && (
                     <div
-                      className="w-3 h-0.5 rounded-full"
+                      className="w-3.5 h-1 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
                   )}
                   {item.icon === "hatch" && (
-                    <div className="w-3 h-3 relative">
+                    <div className="w-3.5 h-3.5 relative rounded-sm overflow-hidden">
                       <div
-                        className="absolute inset-0 rounded-sm"
-                        style={{ backgroundColor: `${item.color}20` }}
+                        className="absolute inset-0"
+                        style={{ backgroundColor: `${item.color}15` }}
                       />
                       {[0, 1, 2].map((j) => (
                         <div
@@ -112,8 +112,8 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
                           className="absolute h-[1px] w-full rotate-45"
                           style={{
                             backgroundColor: item.color,
-                            top: `${j * 4 + 2}px`,
-                            opacity: 0.5,
+                            top: `${j * 5 + 2}px`,
+                            opacity: 0.6,
                           }}
                         />
                       ))}
@@ -122,11 +122,11 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
                   {item.icon === "x" && (
                     <div className="relative w-2.5 h-2.5">
                       <div
-                        className="absolute top-1/2 left-0 w-full h-[1px] rotate-45"
+                        className="absolute top-1/2 left-0 w-full h-[2px] rotate-45"
                         style={{ backgroundColor: item.color }}
                       />
                       <div
-                        className="absolute top-1/2 left-0 w-full h-[1px] -rotate-45"
+                        className="absolute top-1/2 left-0 w-full h-[2px] -rotate-45"
                         style={{ backgroundColor: item.color }}
                       />
                     </div>
@@ -141,7 +141,7 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
                   )}
                 </div>
                 {/* Label */}
-                <span className="text-[11px] text-[#8ab4d4]">{item.label}</span>
+                <span className="text-[11px] text-[#002255]">{item.label}</span>
               </div>
             ))}
           </div>
@@ -150,9 +150,3 @@ export function MapLegend({ isDemoMode = false }: MapLegendProps) {
     </div>
   );
 }
-
-// Changes:
-// - Created collapsible map legend with expand/collapse animation
-// - All legend items with appropriate icons (circle, square, line, etc.)
-// - Demo-specific items shown when in demo mode
-// - Dark theme styling matching the spec
