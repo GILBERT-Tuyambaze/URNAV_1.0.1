@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Menu, Crosshair, Square, Navigation, Play } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Menu, Play, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CampusMapCanvas } from "@/components/urnav/campus-map-canvas";
+import { CampusMapSVG } from "@/components/urnav/campus-map-svg";
+import { MapControls } from "@/components/urnav/map-controls";
 import { FloorSwitcher } from "@/components/urnav/floor-switcher";
-import { MapLegend } from "@/components/urnav/map-legend";
-import { DemoControlPanel } from "@/components/urnav/demo-control-panel";
 import { demoController, type DemoState } from "@/lib/demo-controller";
-import { GATES, type CampusBuilding } from "@/lib/campus-data";
+import { GATES, type CampusBuilding, type CampusRoom } from "@/lib/campus-data";
+import { fitCampus, type ViewState } from "@/lib/map-transform";
 
 interface HomeScreenProps {
   onSearchFocus: () => void;
@@ -18,29 +18,58 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetView: () => void;
+    centerOnUser: () => void;
+  } | null>(null);
+
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [currentFloor, setCurrentFloor] = useState(1);
   const [userPosition, setUserPosition] = useState({ x: GATES[0].position.x, y: GATES[0].position.y });
   const [isLocating, setIsLocating] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [showDemoPanel, setShowDemoPanel] = useState(false);
   const [demoState, setDemoState] = useState<DemoState | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [destinationBuilding, setDestinationBuilding] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1.5);
+  const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
 
   // Layer visibility
   const [showTrail, setShowTrail] = useState(true);
   const [showWifiDot, setShowWifiDot] = useState(false);
   const [showKalmanDot, setShowKalmanDot] = useState(false);
+  const [showPathNodes, setShowPathNodes] = useState(false);
+  const [showPathEdges, setShowPathEdges] = useState(false);
+
+  // View state for map
+  const [view, setView] = useState<ViewState>(() => ({
+    scale: 1,
+    panX: 0,
+    panY: 0,
+    screenW: 400,
+    screenH: 600,
+  }));
 
   // Get container dimensions
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
+        const w = containerRef.current.offsetWidth;
+        const h = containerRef.current.offsetHeight;
+        setDimensions({ width: w, height: h });
+        const fit = fitCampus(w, h, 20);
+        setView((prev) => ({
+          ...prev,
+          screenW: w,
+          screenH: h,
+          scale: fit.scale,
+          panX: fit.panX,
+          panY: fit.panY,
+        }));
       }
     };
     updateDimensions();
@@ -55,53 +84,227 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
         setDemoState(state);
         setUserPosition({ x: state.truePos.x, y: state.truePos.y });
         setCurrentFloor(state.currentFloor);
+        setIsPlaying(demoController.getIsPlaying());
+        setSpeed(demoController.getSpeed());
       });
       return unsubscribe;
     }
   }, [isDemoMode]);
 
+  // Keyboard controls
+  useEffect(() => {
+    if (!isDemoMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          handlePlayPause();
+          break;
+        case "ArrowUp":
+        case "w":
+        case "W":
+          e.preventDefault();
+          handleSpeedChange(Math.min(10, speed + 0.5));
+          break;
+        case "ArrowDown":
+        case "s":
+        case "S":
+          e.preventDefault();
+          handleSpeedChange(Math.max(0.5, speed - 0.5));
+          break;
+        case "ArrowRight":
+        case "d":
+        case "D":
+          e.preventDefault();
+          demoController.stepForward();
+          break;
+        case "ArrowLeft":
+        case "a":
+        case "A":
+          e.preventDefault();
+          demoController.stepBackward();
+          break;
+        case "+":
+        case "=":
+          e.preventDefault();
+          handleZoomIn();
+          break;
+        case "-":
+        case "_":
+          e.preventDefault();
+          handleZoomOut();
+          break;
+        case "r":
+        case "R":
+          e.preventDefault();
+          handleReset();
+          break;
+        case "0":
+          e.preventDefault();
+          handleResetView();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDemoMode, speed]);
+
   // Start demo mode
-  const handleStartDemo = () => {
+  const handleStartDemo = useCallback(() => {
     setIsDemoMode(true);
-    setShowDemoPanel(true);
+    setSelectedRoute("A");
     demoController.setRoute("A");
-  };
+  }, []);
+
+  // Stop demo mode
+  const handleStopDemo = useCallback(() => {
+    setIsDemoMode(false);
+    demoController.pause();
+    setIsPlaying(false);
+  }, []);
 
   // Handle building selection
-  const handleBuildingSelect = (building: CampusBuilding) => {
+  const handleBuildingSelect = useCallback((building: CampusBuilding) => {
     setSelectedBuilding(building.id);
     setDestinationBuilding(building.id);
     onBuildingSelect?.(building);
-  };
+  }, [onBuildingSelect]);
+
+  // Handle room selection
+  const handleRoomSelect = useCallback((room: CampusRoom, building: CampusBuilding) => {
+    setSelectedBuilding(building.id);
+    setDestinationBuilding(building.id);
+    // Could trigger navigation to specific room
+  }, []);
+
+  // Zoom controls
+  const handleZoomIn = useCallback(() => {
+    setView((prev) => {
+      const newScale = Math.min(12, prev.scale * 1.4);
+      const cx = prev.screenW / 2;
+      const cy = prev.screenH / 2;
+      const ratio = newScale / prev.scale;
+      return {
+        ...prev,
+        scale: newScale,
+        panX: cx - (cx - prev.panX) * ratio,
+        panY: cy - (cy - prev.panY) * ratio,
+      };
+    });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setView((prev) => {
+      const newScale = Math.max(0.4, prev.scale / 1.4);
+      const cx = prev.screenW / 2;
+      const cy = prev.screenH / 2;
+      const ratio = newScale / prev.scale;
+      return {
+        ...prev,
+        scale: newScale,
+        panX: cx - (cx - prev.panX) * ratio,
+        panY: cy - (cy - prev.panY) * ratio,
+      };
+    });
+  }, []);
+
+  const handleResetView = useCallback(() => {
+    const fit = fitCampus(dimensions.width, dimensions.height, 20);
+    setView((prev) => ({
+      ...prev,
+      scale: fit.scale,
+      panX: fit.panX,
+      panY: fit.panY,
+    }));
+  }, [dimensions]);
+
+  const handleCenterOnUser = useCallback(() => {
+    setIsLocating(true);
+    // Center map on user position
+  }, []);
+
+  // Demo controls
+  const handlePlayPause = useCallback(() => {
+    demoController.toggle();
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  const handleSpeedChange = useCallback((newSpeed: number) => {
+    setSpeed(newSpeed);
+    demoController.setSpeed(newSpeed);
+  }, []);
+
+  const handleStepForward = useCallback(() => {
+    demoController.stepForward();
+  }, []);
+
+  const handleStepBackward = useCallback(() => {
+    demoController.stepBackward();
+  }, []);
+
+  const handleReset = useCallback(() => {
+    demoController.reset();
+    setIsPlaying(false);
+  }, []);
+
+  const handleRouteSelect = useCallback((routeId: string) => {
+    setSelectedRoute(routeId);
+    demoController.setRoute(routeId);
+  }, []);
+
+  // Layer toggle
+  const handleToggleLayer = useCallback((layer: string, value: boolean) => {
+    switch (layer) {
+      case "trail":
+        setShowTrail(value);
+        break;
+      case "wifi":
+        setShowWifiDot(value);
+        break;
+      case "kalman":
+        setShowKalmanDot(value);
+        break;
+      case "nodes":
+        setShowPathNodes(value);
+        break;
+      case "edges":
+        setShowPathEdges(value);
+        break;
+    }
+  }, []);
 
   return (
-    <div className="h-full flex flex-col bg-[#F5F8FC] relative">
+    <div className="h-full flex flex-col bg-[#E9F0F8] relative overflow-hidden">
       {/* Search Bar - Floating over map */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-3">
+      <div className="absolute top-3 left-3 right-3 z-30 flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg shrink-0 shadow-sm"
+          className="h-10 w-10 bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg shrink-0 shadow-md"
         >
           <Menu className="h-5 w-5" />
         </Button>
         <button
           onClick={onSearchFocus}
-          className="flex-1 h-12 bg-white border-2 border-[#0066CC] rounded-xl px-4 text-left shadow-sm"
+          className="flex-1 h-11 bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 text-left shadow-md flex items-center gap-2"
         >
-          <span className="text-[#8899BB] text-sm">Search rooms, buildings...</span>
+          <MapPin className="w-4 h-4 text-slate-400" />
+          <span className="text-slate-500 text-sm">Search rooms, buildings...</span>
         </button>
       </div>
 
       {/* Map Container - Full screen */}
       <div ref={containerRef} className="flex-1 relative min-h-0">
         {dimensions.width > 0 && dimensions.height > 0 && (
-          <CampusMapCanvas
+          <CampusMapSVG
             width={dimensions.width}
             height={dimensions.height}
             selectedBuilding={selectedBuilding}
             destinationBuilding={destinationBuilding}
             onBuildingSelect={handleBuildingSelect}
+            onRoomSelect={handleRoomSelect}
             showRoute={isDemoMode && demoState !== null}
             routeNodes={isDemoMode ? demoController.getRouteNodes() : []}
             userPosition={isDemoMode ? demoState?.truePos : userPosition}
@@ -109,14 +312,15 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
             showTrail={showTrail}
             showWifiDot={showWifiDot}
             showKalmanDot={showKalmanDot}
+            showPathNodes={showPathNodes}
+            showPathEdges={showPathEdges}
+            animationSpeed={speed}
+            onZoomChange={setZoom}
           />
         )}
 
-        {/* Map Legend */}
-        <MapLegend isDemoMode={isDemoMode} />
-
         {/* Floor Switcher - positioned on left side */}
-        <div className="absolute bottom-40 left-4 z-10">
+        <div className="absolute bottom-28 left-3 z-20">
           <FloorSwitcher
             floors={[3, 2, 1, 0]}
             currentFloor={currentFloor}
@@ -125,88 +329,68 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
           />
         </div>
 
-        {/* Right side controls */}
-        <div className="absolute bottom-40 right-4 z-10 flex flex-col gap-2">
-          {/* Demo mode toggle */}
-          {!isDemoMode && (
-            <Button
-              variant="secondary"
-              size="icon"
+        {/* Map Controls */}
+        <MapControls
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetView={handleResetView}
+          onCenterOnUser={handleCenterOnUser}
+          isDemoMode={isDemoMode}
+          isPlaying={isPlaying}
+          speed={speed}
+          onPlayPause={handlePlayPause}
+          onSpeedChange={handleSpeedChange}
+          onStepForward={handleStepForward}
+          onStepBackward={handleStepBackward}
+          onReset={handleReset}
+          onRouteSelect={handleRouteSelect}
+          selectedRoute={selectedRoute}
+          showTrail={showTrail}
+          showWifiDot={showWifiDot}
+          showKalmanDot={showKalmanDot}
+          showPathNodes={showPathNodes}
+          showPathEdges={showPathEdges}
+          onToggleLayer={handleToggleLayer}
+        />
+
+        {/* Demo mode button (when not in demo) */}
+        {!isDemoMode && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <button
               onClick={handleStartDemo}
-              className="h-12 w-12 rounded-full shadow-lg bg-[#6633BB] hover:bg-[#5522AA] border-none"
-              title="Start Demo"
+              className="bg-[#6633BB] hover:bg-[#5522AA] text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-colors"
             >
-              <Play className="h-5 w-5 text-white" />
-            </Button>
-          )}
+              <Play className="w-4 h-4" />
+              <span className="text-sm font-medium">Start Demo</span>
+            </button>
+          </div>
+        )}
 
-          {/* Recenter button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => setIsLocating(true)}
-            className="h-12 w-12 rounded-full shadow-lg bg-white border-2 border-[#D0E4F7]"
-          >
-            <Crosshair className="h-5 w-5 text-[#0066CC]" />
-          </Button>
-
-          {/* Navigation mode indicator */}
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => {
-              if (isDemoMode) {
-                setIsDemoMode(false);
-                setShowDemoPanel(false);
-                demoController.pause();
-              }
-            }}
-            className={`h-12 w-12 rounded-full shadow-lg ${
-              isDemoMode ? "bg-[#00883A]" : "bg-[#0066CC]"
-            }`}
-          >
-            {isDemoMode ? (
-              <Square className="h-4 w-4 text-white" />
-            ) : (
-              <Navigation className="h-5 w-5 text-white" />
-            )}
-          </Button>
-        </div>
-
-        {/* Position info card */}
-        <div className="absolute bottom-4 left-4 right-4 z-10">
-          {!showDemoPanel && (
-            <div className="bg-white px-4 py-3 rounded-xl border border-[#D0E4F7] shadow-sm">
+        {/* Position status card (when not in demo) */}
+        {!isDemoMode && (
+          <div className="absolute bottom-4 left-3 right-3 z-10">
+            <div className="bg-white/95 backdrop-blur-sm px-4 py-3 rounded-xl border border-slate-200/80 shadow-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div
                     className={`w-2.5 h-2.5 rounded-full ${
-                      isDemoMode
-                        ? "bg-[#0066CC]"
-                        : isLocating
-                        ? "bg-[#00883A]"
-                        : "bg-[#F5A800]"
+                      isLocating ? "bg-green-500" : "bg-yellow-500"
                     } animate-pulse`}
                   />
-                  <span className="text-sm font-medium text-[#002255]">
-                    {isDemoMode
-                      ? "Demo Mode"
-                      : isLocating
-                      ? "Live Location"
-                      : "Location Paused"}
+                  <span className="text-sm font-medium text-slate-700">
+                    {isLocating ? "Live Location" : "Location Paused"}
                   </span>
                 </div>
-                <span className="text-xs text-[#4466AA]">Floor {currentFloor}</span>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <span>Floor {currentFloor}</span>
+                  <span className="text-slate-300">|</span>
+                  <span>Zoom {Math.round(zoom * 100)}%</span>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Demo Control Panel */}
-        <DemoControlPanel
-          isVisible={showDemoPanel}
-          onClose={() => setShowDemoPanel(false)}
-        />
+          </div>
+        )}
       </div>
     </div>
   );
