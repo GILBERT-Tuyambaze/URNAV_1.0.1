@@ -83,14 +83,14 @@ export function ArrivalScreen({ destinationName, destinationFloor, buildingName,
           <Button
             variant="outline"
             onClick={onGoHome}
-            className="flex-1 h-12 rounded-xl border-[#D0E4F7] text-[#0066CC] hover:bg-[#0066CC]"
+            className="flex-1 h-12 rounded-xl border-[#D0E4F7] text-[#0066CC] hover:bg-[#E8F3FF]"
           >
             <Home className="h-4 w-4 mr-2" />
             Home
           </Button>
           <Button
             variant="outline"
-            className="flex-1 h-12 rounded-xl border-[#D0E4F7] text-[#0066CC] hover:bg-[#0066CC]"
+            className="flex-1 h-12 rounded-xl border-[#D0E4F7] text-[#0066CC] hover:bg-[#E8F3FF]"
             onClick={() => {
               if (navigator.share) {
                 navigator.share({
