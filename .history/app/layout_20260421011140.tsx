@@ -13,19 +13,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/android-chrome-192x192.png',
+        url: '/C:\Users\GBs\Documents\Codes\Projects\URNAV\public\android-chrome-512x512.png',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/android-chrome-192x192.png',
+        url: '/urnav_logo.png',
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/android-chrome-192x192.png',
+        url: '/urnav_logo.png',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/android-chrome-192x192.png',
+    apple: '/urnav_logo.png',
   },
 }
 

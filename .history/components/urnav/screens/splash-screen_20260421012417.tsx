@@ -79,7 +79,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
       {/* Version */}
       <div className="absolute bottom-8 text-white/50 text-xs">
-        v1.0 Demo - UR Nyarugenge Campus by Gilbert
+        v1.0 Demo - UR Nyarugenge Campus
       </div>
     </div>
   );

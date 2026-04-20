@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
-    apple: '/android-chrome-192x192.png',
+    apple: ',
   },
 }
 

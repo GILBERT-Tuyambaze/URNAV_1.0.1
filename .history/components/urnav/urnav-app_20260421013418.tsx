@@ -65,7 +65,7 @@ export function URNAVApp() {
       {/* Mobile device frame */}
       <div className="h-full w-full flex flex-col">
         {/* Status bar mockup */}
-        <div className="h-11 bg-[#004499] flex items-center justify-between px-6 shrink-0">
+        {/* <div className="h-11 bg-[#004499] flex items-center justify-between px-6 shrink-0">
           <span className="text-xs font-medium text-white">9:43</span>
           <div className="flex items-center gap-1">
             <div className="flex gap-0.5">
@@ -79,7 +79,7 @@ export function URNAVApp() {
               <div className="absolute right-0.5 top-0.5 bottom-0.5 w-0.5 bg-[#004499] rounded-sm" />
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Screen content */}
         <div className="flex-1 min-h-0">

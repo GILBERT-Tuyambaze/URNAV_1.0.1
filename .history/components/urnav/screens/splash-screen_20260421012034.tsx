@@ -45,8 +45,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
       {/* Logo */}
       <div className="relative z-10 flex flex-col items-center">
-        <div className="w-28 h-28 bg-white/20  rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
-          <img src="/android-chrome-192x192.png" alt="URNAV Logo" className="w-200 h-100 object-contain p-2" />
+        <div className="w-28 h-28 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
+          <img src="/android-chrome-192x192.png" alt="URNAV Logo"className="w-100 h-14 text-white" />
         </div>
         
         <h1 className="text-5xl font-bold tracking-tight mb-2">URNAV</h1>
@@ -79,7 +79,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
       {/* Version */}
       <div className="absolute bottom-8 text-white/50 text-xs">
-        v1.0 Demo - UR Nyarugenge Campus by Gilbert
+        v1.0 Demo - UR Nyarugenge Campus
       </div>
     </div>
   );

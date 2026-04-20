@@ -66,7 +66,7 @@ export function URNAVApp() {
       <div className="h-full w-full flex flex-col">
         {/* Status bar mockup */}
         <div className="h-11 bg-[#004499] flex items-center justify-between px-6 shrink-0">
-          <span className="text-xs font-medium text-white">9:43</span>
+          <span className="text-xs font-medium text-white">9:41</span>
           <div className="flex items-center gap-1">
             <div className="flex gap-0.5">
               <div className="w-1 h-2 bg-white rounded-sm" />

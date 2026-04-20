@@ -9,23 +9,23 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'URNAV - University of Rwanda Navigation',
   description: 'Indoor navigation system for University of Rwanda campus',
-  generator: 'Gilbet',
+  generator: '.app',
   icons: {
     icon: [
       {
-        url: '/android-chrome-192x192.png',
+        url: '/icon-light-32x32.png',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/android-chrome-192x192.png',
+        url: '/icon-dark-32x32.png',
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/android-chrome-192x192.png',
+        url: '/icon.svg',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/android-chrome-192x192.png',
+    apple: '/apple-icon.png',
   },
 }
 
