@@ -223,16 +223,14 @@
 
 ---
 
-## 9. DEMO ROUTES IMPLEMENTATION
+## 9. DEMO ROUTES TO IMPLEMENT
 
 | Route | Description | Status |
 |-------|-------------|--------|
-| Main Gate -> Library Room 101 | Outdoor + Indoor (1 floor) | Planned |
-| Main Gate -> Admin Principal Office | Outdoor + Indoor (ground floor) | Planned |
-| Main Gate -> Agaciro Lab 201 (Floor 2) | Outdoor + Indoor + Stairs (2 floors) | Planned |
-| Engineering -> Mining Dean Office | Cross-building + Indoor | Planned |
-
-**Next Steps:** Create pre-computed demo routes demonstrating full outdoor-to-indoor navigation with floor transitions.
+| Main Gate -> Library Room 101 | Outdoor + Indoor | TODO |
+| Main Gate -> Admin Principal Office | Outdoor + Indoor | TODO |
+| Main Gate -> Agaciro Lab 201 (Floor 2) | Outdoor + Indoor + Stairs | TODO |
+| Engineering -> Mining Dean Office | Cross-building + Indoor | TODO |
 
 ---
 
@@ -241,5 +239,4 @@
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-04-21 | Initial checklist created with indoor navigation gaps identified | v0 |
-| 2026-04-21 | UPDATED: Verified implementation complete - A*, graphs, UI all working | v1 |
 

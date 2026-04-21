@@ -92,7 +92,7 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
       setIsPlaying(demoController.getIsPlaying());
       setSpeed(demoController.getSpeed());
     });
-    return () => unsubscribe();
+    return unsubscribe;
   }, [isDemoMode]);
 
   // Keyboard controls
@@ -498,7 +498,18 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
           onToggleLayer={handleToggleLayer}
         />
 
-        
+        {/* Demo mode button (when not in demo) */}
+        {!isDemoMode && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={handleStartDemo}
+              className="bg-[#6633BB] hover:bg-[#5522AA] text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-colors"
+            >
+              <Play className="w-4 h-4" />
+              <span className="text-sm font-medium">Start Demo</span>
+            </button>
+          </div>
+        )}
 
         {/* Position status card (when not in demo) */}
         {!isDemoMode && (

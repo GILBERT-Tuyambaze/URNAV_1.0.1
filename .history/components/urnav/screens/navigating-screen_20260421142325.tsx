@@ -112,9 +112,6 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
   const [autoZoom, setAutoZoom] = useState(true);
   const mapRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void; centerOnUser: () => void } | null>(null);
 
-  // Ref to track if we've reached the building (to avoid dependency issues)
-  const hasReachedBuildingRef = useRef(false);
-
   // Get destination building and room
   const destinationBuilding = ALL_BUILDINGS.find(b => b.id === destinationBuildingId);
   const destinationRoom = destinationBuilding?.rooms.find(r => r.id === destinationRoomId);
@@ -137,11 +134,6 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Update ref when hasReachedBuilding changes
-  useEffect(() => {
-    hasReachedBuildingRef.current = hasReachedBuilding;
-  }, [hasReachedBuilding]);
-
   // Subscribe to demo controller and start navigation
   useEffect(() => {
     demoController.setRoute("A");
@@ -157,8 +149,7 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
 
       // When reaching building (progress >= 0.98), trigger arrival
       // This will either go to indoor nav (if room selected) or arrival screen
-      if (state.totalProgress >= 0.98 && !hasReachedBuildingRef.current) {
-        hasReachedBuildingRef.current = true;
+      if (state.totalProgress >= 0.98 && !hasReachedBuilding) {
         setHasReachedBuilding(true);
         demoController.pause();
         // Short delay before transitioning
@@ -170,7 +161,7 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
       demoController.pause();
       unsubscribe();
     };
-  }, [onArrival]);
+  }, [onArrival, hasReachedBuilding]);
 
   // Get current instruction based on progress
   const progress = demoState?.totalProgress || 0;

@@ -18,7 +18,7 @@ import {
 import {
   toScreen,
   fitCampus,
-  MAP_VIRTUAL_WIDTH,
+  MAP_REAL_WIDTH,
   type ViewState,
 } from "@/lib/map-transform";
 import { demoController, type DemoState, type Position } from "@/lib/demo-controller";
@@ -103,9 +103,6 @@ export const CampusMapSVG = forwardRef<
   const [pulseScale, setPulseScale] = useState(1);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
 
-  // Ref to store current animation speed for interval
-  const animationSpeedRef = useRef(animationSpeed);
-
   // Touch gesture state
   const gestureRef = useRef({
     isPanning: false,
@@ -134,19 +131,14 @@ export const CampusMapSVG = forwardRef<
     }
   }, [isDemoMode]);
 
-  // Update animation speed ref when prop changes
-  useEffect(() => {
-    animationSpeedRef.current = animationSpeed;
-  }, [animationSpeed]);
-
   // Marching ants animation
   useEffect(() => {
     if (!showRoute || routeNodes.length < 2) return;
     const interval = setInterval(() => {
       setMarchingOffset((prev) => (prev - 1) % 20);
-    }, Math.max(20, 50 / animationSpeedRef.current));
+    }, Math.max(20, 50 / animationSpeed));
     return () => clearInterval(interval);
-  }, [showRoute, routeNodes.length]);
+  }, [showRoute, routeNodes.length, animationSpeed]);
 
   // Pulse animation
   useEffect(() => {
@@ -184,7 +176,7 @@ export const CampusMapSVG = forwardRef<
 
   // Scale value
   const scaleValue = useCallback(
-    (metres: number) => (metres * view.screenW * view.scale) / MAP_VIRTUAL_WIDTH,
+    (metres: number) => (metres * view.screenW * view.scale) / MAP_REAL_WIDTH,
     [view]
   );
 
@@ -726,86 +718,44 @@ export const CampusMapSVG = forwardRef<
       })()}
 
       {/* LAYER 8 - Campus Buildings */}
-      {(() => {
-        // Calculate building positions with collision detection
-        const buildingPositions = ALL_BUILDINGS.map((building) => {
-          const basePos = ts(building.position.x, building.position.y);
-          const w = scaleValue(building.width);
-          const h = scaleValue(building.height);
-          return {
-            building,
-            basePos,
-            w,
-            h,
-            screenPos: { ...basePos },
-          };
-        });
+      {ALL_BUILDINGS.map((building) => {
+        const pos = ts(building.position.x, building.position.y);
+        const w = scaleValue(building.width);
+        const h = scaleValue(building.height);
+        const colors = getBuildingColors(building.type);
+        const isSelected = selectedBuilding === building.id;
+        const isDestination = destinationBuilding === building.id;
 
-        // Minimal collision detection - only for edge cases
-        // The spacing scale (1.18x) now provides natural separation
-        // Only push apart buildings that are extremely close at high zoom
-        const zoomFactor = Math.pow(view.scale, 0.7);
-        const minDistance = view.scale > 4 ? 8 : Math.max(4, 15 / zoomFactor);
-        const maxOffset = view.scale > 4 ? 3 : Math.max(2, 8 / zoomFactor);
-
-        for (let i = 0; i < buildingPositions.length; i++) {
-          for (let j = i + 1; j < buildingPositions.length; j++) {
-            const b1 = buildingPositions[i];
-            const b2 = buildingPositions[j];
-
-            const dx = b2.screenPos.sx - b1.screenPos.sx;
-            const dy = b2.screenPos.sy - b1.screenPos.sy;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < minDistance && distance > 0) {
-              // Only apply minimal offset for extreme cases
-              const offset = (minDistance - distance) / 2;
-              const angle = Math.atan2(dy, dx);
-              const push = Math.min(offset, maxOffset);
-
-              b1.screenPos.sx -= Math.cos(angle) * push;
-              b1.screenPos.sy -= Math.sin(angle) * push;
-              b2.screenPos.sx += Math.cos(angle) * push;
-              b2.screenPos.sy += Math.sin(angle) * push;
-            }
-          }
-        }
-
-        return buildingPositions.map(({ building, screenPos, w, h }) => {
-          const colors = getBuildingColors(building.type);
-          const isSelected = selectedBuilding === building.id;
-          const isDestination = destinationBuilding === building.id;
-
-          return (
-            <g
-              key={building.id}
-              onClick={(e) => handleBuildingClick(e, building)}
-              style={{ cursor: "pointer" }}
-              filter="url(#buildingShadow)"
-            >
-              {/* Destination highlight */}
-              {isDestination && (
-                <rect
-                  x={screenPos.sx - 6}
-                  y={screenPos.sy - h - 6}
-                  width={w + 12}
-                  height={h + 12}
-                  fill="url(#destGlow)"
-                  rx={8}
-                />
-              )}
-
-              {/* Building body */}
+        return (
+          <g
+            key={building.id}
+            onClick={(e) => handleBuildingClick(e, building)}
+            style={{ cursor: "pointer" }}
+            filter="url(#buildingShadow)"
+          >
+            {/* Destination highlight */}
+            {isDestination && (
               <rect
-                x={screenPos.sx}
-                y={screenPos.sy - h}
-                width={w}
-                height={h}
-                fill={isDestination ? "#EDE8F8" : colors.fill}
-                stroke={isSelected ? "#002255" : isDestination ? "#6633BB" : colors.stroke}
-                strokeWidth={isSelected || isDestination ? 2.5 : 1.5}
-                rx={4}
+                x={pos.sx - 6}
+                y={pos.sy - h - 6}
+                width={w + 12}
+                height={h + 12}
+                fill="url(#destGlow)"
+                rx={8}
               />
+            )}
+
+            {/* Building body */}
+            <rect
+              x={pos.sx}
+              y={pos.sy - h}
+              width={w}
+              height={h}
+              fill={isDestination ? "#EDE8F8" : colors.fill}
+              stroke={isSelected ? "#002255" : isDestination ? "#6633BB" : colors.stroke}
+              strokeWidth={isSelected || isDestination ? 2.5 : 1.5}
+              rx={4}
+            />
 
             {/* Indoor rooms when zoomed in */}
             {showIndoorRooms && building.rooms && building.rooms.length > 0 && (
@@ -822,8 +772,8 @@ export const CampusMapSVG = forwardRef<
                     const padding = 4;
                     const cellW = (w - padding * 2) / cols;
                     const cellH = (h - padding * 2) / rows;
-                    const roomX = screenPos.sx + padding + col * cellW;
-                    const roomY = screenPos.sy - h + padding + row * cellH;
+                    const roomX = pos.sx + padding + col * cellW;
+                    const roomY = pos.sy - h + padding + row * cellH;
                     const roomW = cellW - 2;
                     const roomH = cellH - 2;
                     const roomColor = ROOM_COLORS[room.type || "default"] || ROOM_COLORS.default;
@@ -868,18 +818,18 @@ export const CampusMapSVG = forwardRef<
             {building.number !== 0 && w > 12 && (
               <g>
                 <rect
-                  x={screenPos.sx + 3}
-                  y={screenPos.sy - h + 3}
+                  x={pos.sx + 3}
+                  y={pos.sy - h + 3}
                   width={Math.max(14, 16 * Math.min(1, view.scale))}
                   height={Math.max(14, 16 * Math.min(1, view.scale))}
                   fill={colors.stroke}
                   rx={3}
                 />
                 <text
-                  x={screenPos.sx + 3 + Math.max(7, 8 * Math.min(1, view.scale))}
-                  y={screenPos.sy - h + 3 + Math.max(10, 12 * Math.min(1, view.scale))}
+                  x={pos.sx + 3 + Math.max(7, 8 * Math.min(1, view.scale))}
+                  y={pos.sy - h + 3 + Math.max(10, 12 * Math.min(1, view.scale))}
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={Math.max(9, 10 * Math.min(1, view.scale))}
                   fontWeight="700"
                   textAnchor="middle"
                 >
@@ -891,10 +841,10 @@ export const CampusMapSVG = forwardRef<
             {/* Building name at medium+ zoom */}
             {zoomLevel >= 2 && w > 30 && h > 20 && !showIndoorRooms && (
               <text
-                x={screenPos.sx + w / 2}
-                y={screenPos.sy - h / 2 + 4}
+                x={pos.sx + w / 2}
+                y={pos.sy - h / 2 + 4}
                 fill="#1a2a4a"
-                fontSize={9}
+                fontSize={Math.max(7, 9 * view.scale)}
                 fontWeight="600"
                 textAnchor="middle"
                 opacity={0.85}
@@ -909,16 +859,16 @@ export const CampusMapSVG = forwardRef<
             {building.underConstruction && (
               <g>
                 <rect
-                  x={screenPos.sx + w - 18}
-                  y={screenPos.sy - h + 3}
+                  x={pos.sx + w - 18}
+                  y={pos.sy - h + 3}
                   width={15}
                   height={15}
                   fill="#F5A800"
                   rx={3}
                 />
                 <text
-                  x={screenPos.sx + w - 10.5}
-                  y={screenPos.sy - h + 13}
+                  x={pos.sx + w - 10.5}
+                  y={pos.sy - h + 13}
                   fill="#FFFFFF"
                   fontSize={8}
                   fontWeight="bold"
@@ -930,8 +880,7 @@ export const CampusMapSVG = forwardRef<
             )}
           </g>
         );
-      });
-      })()}
+      })}
 
       {/* LAYER 9 - Gate Markers */}
       {GATES.map((gate) => {
@@ -946,7 +895,7 @@ export const CampusMapSVG = forwardRef<
               x={pos.sx}
               y={pos.sy + r + 12}
               fill="#006830"
-              fontSize={11}
+              fontSize={Math.max(9, 11 * view.scale)}
               fontWeight="600"
               textAnchor="middle"
             >

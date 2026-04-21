@@ -18,7 +18,7 @@ import {
 import {
   toScreen,
   fitCampus,
-  MAP_VIRTUAL_WIDTH,
+  MAP_REAL_WIDTH,
   type ViewState,
 } from "@/lib/map-transform";
 import { demoController, type DemoState, type Position } from "@/lib/demo-controller";
@@ -103,9 +103,6 @@ export const CampusMapSVG = forwardRef<
   const [pulseScale, setPulseScale] = useState(1);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
 
-  // Ref to store current animation speed for interval
-  const animationSpeedRef = useRef(animationSpeed);
-
   // Touch gesture state
   const gestureRef = useRef({
     isPanning: false,
@@ -134,19 +131,14 @@ export const CampusMapSVG = forwardRef<
     }
   }, [isDemoMode]);
 
-  // Update animation speed ref when prop changes
-  useEffect(() => {
-    animationSpeedRef.current = animationSpeed;
-  }, [animationSpeed]);
-
   // Marching ants animation
   useEffect(() => {
     if (!showRoute || routeNodes.length < 2) return;
     const interval = setInterval(() => {
       setMarchingOffset((prev) => (prev - 1) % 20);
-    }, Math.max(20, 50 / animationSpeedRef.current));
+    }, Math.max(20, 50 / animationSpeed));
     return () => clearInterval(interval);
-  }, [showRoute, routeNodes.length]);
+  }, [showRoute, routeNodes.length, animationSpeed]);
 
   // Pulse animation
   useEffect(() => {
@@ -184,7 +176,7 @@ export const CampusMapSVG = forwardRef<
 
   // Scale value
   const scaleValue = useCallback(
-    (metres: number) => (metres * view.screenW * view.scale) / MAP_VIRTUAL_WIDTH,
+    (metres: number) => (metres * view.screenW * view.scale) / MAP_REAL_WIDTH,
     [view]
   );
 
@@ -741,12 +733,9 @@ export const CampusMapSVG = forwardRef<
           };
         });
 
-        // Minimal collision detection - only for edge cases
-        // The spacing scale (1.18x) now provides natural separation
-        // Only push apart buildings that are extremely close at high zoom
-        const zoomFactor = Math.pow(view.scale, 0.7);
-        const minDistance = view.scale > 4 ? 8 : Math.max(4, 15 / zoomFactor);
-        const maxOffset = view.scale > 4 ? 3 : Math.max(2, 8 / zoomFactor);
+        // Detect and resolve overlaps
+        const minDistance = 25; // Minimum distance between building centers in screen pixels
+        const maxOffset = 15; // Maximum offset to apply
 
         for (let i = 0; i < buildingPositions.length; i++) {
           for (let j = i + 1; j < buildingPositions.length; j++) {
@@ -758,15 +747,36 @@ export const CampusMapSVG = forwardRef<
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < minDistance && distance > 0) {
-              // Only apply minimal offset for extreme cases
+              // Buildings are too close, apply offset
               const offset = (minDistance - distance) / 2;
               const angle = Math.atan2(dy, dx);
-              const push = Math.min(offset, maxOffset);
 
-              b1.screenPos.sx -= Math.cos(angle) * push;
-              b1.screenPos.sy -= Math.sin(angle) * push;
-              b2.screenPos.sx += Math.cos(angle) * push;
-              b2.screenPos.sy += Math.sin(angle) * push;
+              // Apply offset to both buildings in opposite directions
+              b1.screenPos.sx -= Math.cos(angle) * offset;
+              b1.screenPos.sy -= Math.sin(angle) * offset;
+              b2.screenPos.sx += Math.cos(angle) * offset;
+              b2.screenPos.sy += Math.sin(angle) * offset;
+
+              // Ensure offsets don't exceed maximum
+              const b1Offset = Math.sqrt(
+                Math.pow(b1.screenPos.sx - b1.basePos.sx, 2) +
+                Math.pow(b1.screenPos.sy - b1.basePos.sy, 2)
+              );
+              const b2Offset = Math.sqrt(
+                Math.pow(b2.screenPos.sx - b2.basePos.sx, 2) +
+                Math.pow(b2.screenPos.sy - b2.basePos.sy, 2)
+              );
+
+              if (b1Offset > maxOffset) {
+                const scale = maxOffset / b1Offset;
+                b1.screenPos.sx = b1.basePos.sx + (b1.screenPos.sx - b1.basePos.sx) * scale;
+                b1.screenPos.sy = b1.basePos.sy + (b1.screenPos.sy - b1.basePos.sy) * scale;
+              }
+              if (b2Offset > maxOffset) {
+                const scale = maxOffset / b2Offset;
+                b2.screenPos.sx = b2.basePos.sx + (b2.screenPos.sx - b2.basePos.sx) * scale;
+                b2.screenPos.sy = b2.basePos.sy + (b2.screenPos.sy - b2.basePos.sy) * scale;
+              }
             }
           }
         }
@@ -930,8 +940,7 @@ export const CampusMapSVG = forwardRef<
             )}
           </g>
         );
-      });
-      })()}
+      })}
 
       {/* LAYER 9 - Gate Markers */}
       {GATES.map((gate) => {

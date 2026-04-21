@@ -148,41 +148,41 @@
 | **instructionService** | **Done** | **Dynamic instruction generation from computed paths** |
 | Demo controller | Done | Kalman filtering, Wi-Fi noise, trail tracking |
 
-### Phase 1: Data Layer Enhancement ✅ COMPLETE
+### Phase 1: Data Layer Enhancement (TODO)
 
 | Task | Status | Priority |
 |------|--------|----------|
-| 6.1.1 Create indoor node/edge graph for key buildings | Done | Critical |
-| 6.1.2 Connect building entry nodes to outdoor graph | Done | Critical |
-| 6.1.3 Add stairs/lift nodes for multi-floor | Done | Critical |
-| 6.1.4 Room nodes with proper coordinates | Done | Critical |
+| 6.1.1 Create indoor node/edge graph for key buildings | TODO | Critical |
+| 6.1.2 Connect building entry nodes to outdoor graph | TODO | Critical |
+| 6.1.3 Add stairs/lift nodes for multi-floor | TODO | Critical |
+| 6.1.4 Room nodes with proper coordinates | TODO | Critical |
 
-### Phase 2: A* Pathfinding ✅ COMPLETE
-
-| Task | Status | Priority |
-|------|--------|----------|
-| 6.2.1 Implement proper A* algorithm | Done | Critical |
-| 6.2.2 Support multi-floor pathfinding | Done | Critical |
-| 6.2.3 Connect outdoor-to-indoor routing | Done | Critical |
-| 6.2.4 Generate instruction array from path | Done | Critical |
-
-### Phase 3: User Interface ✅ COMPLETE
+### Phase 2: A* Pathfinding (TODO)
 
 | Task | Status | Priority |
 |------|--------|----------|
-| 6.3.1 Room selector in search (building + room) | Done | High |
-| 6.3.2 Indoor floor plan view | Done | High |
-| 6.3.3 Floor switcher control | Done | Medium |
-| 6.3.4 Indoor route visualization | Done | Critical |
+| 6.2.1 Implement proper A* algorithm | TODO | Critical |
+| 6.2.2 Support multi-floor pathfinding | TODO | Critical |
+| 6.2.3 Connect outdoor-to-indoor routing | TODO | Critical |
+| 6.2.4 Generate instruction array from path | TODO | Critical |
 
-### Phase 4: Navigation Flow ⚠️ IN PROGRESS
+### Phase 3: User Interface (TODO)
 
 | Task | Status | Priority |
 |------|--------|----------|
-| 6.4.1 Outdoor-to-indoor transition | Done | High |
-| 6.4.2 Floor transition during navigation | Done | High |
-| 6.4.3 Room arrival detection | Done | High |
-| 6.4.4 Demo routes with indoor segments | In Progress | Critical |
+| 6.3.1 Room selector in search (building + room) | TODO | High |
+| 6.3.2 Indoor floor plan view | TODO | High |
+| 6.3.3 Floor switcher control | TODO | Medium |
+| 6.3.4 Indoor route visualization | TODO | Critical |
+
+### Phase 4: Navigation Flow (TODO)
+
+| Task | Status | Priority |
+|------|--------|----------|
+| 6.4.1 Outdoor-to-indoor transition | TODO | High |
+| 6.4.2 Floor transition during navigation | TODO | High |
+| 6.4.3 Room arrival detection | TODO | High |
+| 6.4.4 Demo routes with indoor segments | TODO | Critical |
 
 ---
 
@@ -207,32 +207,27 @@
 
 ---
 
-## 8. FILES STATUS
+## 8. FILES TO MODIFY/CREATE
 
-| File | Status | Purpose |
+| File | Action | Purpose |
 |------|--------|---------|
-| `lib/indoor-navigation.ts` | ✅ Created | A* algorithm, indoor graph, instruction generation |
-| `lib/pathfinding-service.ts` | ✅ Created | Full pathfinding with route optimization |
-| `lib/indoor-graph.ts` | ✅ Created | Graph generation for all buildings |
-| `lib/campus-data.ts` | ✅ Updated | Entry nodes connecting outdoor to indoor |
-| `components/urnav/room-selector.tsx` | ✅ Created | UI for selecting building + room |
-| `components/urnav/indoor-floor-plan-svg.tsx` | ✅ Created | Floor plan view with room navigation |
-| `components/urnav/screens/search-screen.tsx` | ✅ Updated | Room selection capability fully implemented |
-| `components/urnav/campus-map-svg.tsx` | ✅ Updated | Renders indoor routes with animations |
-| `components/urnav/urnav-app.tsx` | 🔧 Needs Review | Integration of demo routes with indoor segments |
+| `lib/indoor-navigation.ts` | Create | A* algorithm, indoor graph, instruction generation |
+| `lib/campus-data.ts` | Update | Add entry nodes connecting outdoor to indoor |
+| `components/urnav/room-selector.tsx` | Create | UI for selecting building + room |
+| `components/urnav/indoor-map.tsx` | Create | Floor plan view with room navigation |
+| `components/urnav/screens/search-screen.tsx` | Update | Add room selection capability |
+| `components/urnav/campus-map-svg.tsx` | Update | Render indoor routes |
 
 ---
 
-## 9. DEMO ROUTES IMPLEMENTATION
+## 9. DEMO ROUTES TO IMPLEMENT
 
 | Route | Description | Status |
 |-------|-------------|--------|
-| Main Gate -> Library Room 101 | Outdoor + Indoor (1 floor) | Planned |
-| Main Gate -> Admin Principal Office | Outdoor + Indoor (ground floor) | Planned |
-| Main Gate -> Agaciro Lab 201 (Floor 2) | Outdoor + Indoor + Stairs (2 floors) | Planned |
-| Engineering -> Mining Dean Office | Cross-building + Indoor | Planned |
-
-**Next Steps:** Create pre-computed demo routes demonstrating full outdoor-to-indoor navigation with floor transitions.
+| Main Gate -> Library Room 101 | Outdoor + Indoor | TODO |
+| Main Gate -> Admin Principal Office | Outdoor + Indoor | TODO |
+| Main Gate -> Agaciro Lab 201 (Floor 2) | Outdoor + Indoor + Stairs | TODO |
+| Engineering -> Mining Dean Office | Cross-building + Indoor | TODO |
 
 ---
 
@@ -241,5 +236,4 @@
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-04-21 | Initial checklist created with indoor navigation gaps identified | v0 |
-| 2026-04-21 | UPDATED: Verified implementation complete - A*, graphs, UI all working | v1 |
 

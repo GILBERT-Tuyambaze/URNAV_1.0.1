@@ -1102,31 +1102,5 @@ export function CampusMapCanvas({
         </g>
       )}
     </svg>
-
-    {/* Zoom controls */}
-    <div className="absolute top-20 right-3 z-10 flex flex-col gap-2">
-      <div className="flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/80 overflow-hidden">
-        <Button
-          onClick={zoomIn}
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 hover:bg-slate-100 transition-colors"
-          aria-label="Zoom in"
-        >
-          <Plus className="h-5 w-5 text-slate-600" />
-        </Button>
-        <div className="h-px bg-slate-200" />
-        <Button
-          onClick={zoomOut}
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 hover:bg-slate-100 transition-colors"
-          aria-label="Zoom out"
-        >
-          <Minus className="h-5 w-5 text-slate-600" />
-        </Button>
-      </div>
-    </div>
-  </div>
   );
 }

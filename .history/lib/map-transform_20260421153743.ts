@@ -48,14 +48,11 @@ export interface Building {
  * @returns { sx: number, sy: number }
  */
 export function toScreen(mx: number, my: number, view: ViewState): ScreenCoord {
-  const baseScale = view.screenW / MAP_VIRTUAL_WIDTH;
+  const baseScale = view.screenW / MAP_REAL_WIDTH;
   const s = baseScale * view.scale;
-  // Apply spacing scale to expand the coordinate space
-  const spacedX = mx * SPACING_SCALE;
-  const spacedY = my * SPACING_SCALE;
   return {
-    sx: view.panX + spacedX * s,
-    sy: view.panY + (MAP_VIRTUAL_HEIGHT - spacedY) * s, // flip Y: north = up
+    sx: view.panX + mx * s,
+    sy: view.panY + (MAP_REAL_HEIGHT - my) * s, // flip Y: north = up
   };
 }
 
@@ -64,14 +61,11 @@ export function toScreen(mx: number, my: number, view: ViewState): ScreenCoord {
  * Used for tap-to-navigate.
  */
 export function toMetres(sx: number, sy: number, view: ViewState): MetreCoord {
-  const baseScale = view.screenW / MAP_VIRTUAL_WIDTH;
+  const baseScale = view.screenW / MAP_REAL_WIDTH;
   const s = baseScale * view.scale;
-  const spacedX = (sx - view.panX) / s;
-  const spacedY = MAP_VIRTUAL_HEIGHT - (sy - view.panY) / s;
-  // Reverse the spacing scale to get original campus coordinates
   return {
-    mx: spacedX / SPACING_SCALE,
-    my: spacedY / SPACING_SCALE,
+    mx: (sx - view.panX) / s,
+    my: MAP_REAL_HEIGHT - (sy - view.panY) / s,
   };
 }
 
@@ -119,9 +113,9 @@ export function fitCampus(
   screenH: number,
   padding = 20
 ): { scale: number; panX: number; panY: number } {
-  const scaleX = (screenW - padding * 2) / MAP_VIRTUAL_WIDTH;
-  const scaleY = (screenH - padding * 2) / MAP_VIRTUAL_HEIGHT;
-  const scale = Math.min(scaleX, scaleY) * (MAP_VIRTUAL_WIDTH / screenW);
+  const scaleX = (screenW - padding * 2) / MAP_REAL_WIDTH;
+  const scaleY = (screenH - padding * 2) / MAP_REAL_HEIGHT;
+  const scale = Math.min(scaleX, scaleY) * (MAP_REAL_WIDTH / screenW);
   return { scale, panX: padding, panY: padding };
 }
 

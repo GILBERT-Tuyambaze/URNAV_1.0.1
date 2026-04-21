@@ -355,7 +355,7 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
                 </div>
               </button>
 
-              <button 
+              {/* <button 
                 onClick={() => { setMenuOpen(false); handleStartDemo(); }}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[#EEE8FF] transition-colors text-left"
               >
@@ -366,7 +366,7 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
                   <p className="font-medium text-slate-800">Demo Mode</p>
                   <p className="text-xs text-slate-500">See navigation in action</p>
                 </div>
-              </button>
+              </button> */}
 
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 mb-2 mt-4">Settings</p>
 
@@ -498,7 +498,18 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
           onToggleLayer={handleToggleLayer}
         />
 
-        
+        {/* Demo mode button (when not in demo) */}
+        {!isDemoMode && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={handleStartDemo}
+              className="bg-[#6633BB] hover:bg-[#5522AA] text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-colors"
+            >
+              <Play className="w-4 h-4" />
+              <span className="text-sm font-medium">Start Demo</span>
+            </button>
+          </div>
+        )}
 
         {/* Position status card (when not in demo) */}
         {!isDemoMode && (

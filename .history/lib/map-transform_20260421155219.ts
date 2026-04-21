@@ -119,9 +119,9 @@ export function fitCampus(
   screenH: number,
   padding = 20
 ): { scale: number; panX: number; panY: number } {
-  const scaleX = (screenW - padding * 2) / MAP_VIRTUAL_WIDTH;
-  const scaleY = (screenH - padding * 2) / MAP_VIRTUAL_HEIGHT;
-  const scale = Math.min(scaleX, scaleY) * (MAP_VIRTUAL_WIDTH / screenW);
+  const scaleX = (screenW - padding * 2) / MAP_REAL_WIDTH;
+  const scaleY = (screenH - padding * 2) / MAP_REAL_HEIGHT;
+  const scale = Math.min(scaleX, scaleY) * (MAP_REAL_WIDTH / screenW);
   return { scale, panX: padding, panY: padding };
 }
 
