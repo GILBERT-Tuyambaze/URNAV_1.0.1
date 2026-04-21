@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ArrowLeft,
   Play,
@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Volume2,
   VolumeX,
-  MapPin,
   Navigation,
   Building2,
   CheckCircle2,
@@ -18,6 +17,9 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
+  MapPin,
+  Footprints,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampusBuilding, CampusRoom, getBuildingColors, getRoomColors } from "@/lib/campus-data";
@@ -27,6 +29,7 @@ import {
   type NavigationRoute,
   type NavigationInstruction,
 } from "@/lib/indoor-navigation";
+import { IndoorFloorPlanSVG } from "./indoor-floor-plan-svg";
 
 interface IndoorNavigationScreenProps {
   building: CampusBuilding;
@@ -39,19 +42,41 @@ interface IndoorNavigationScreenProps {
 function getDirectionIcon(direction: string) {
   switch (direction) {
     case "left":
-      return <ChevronLeft className="w-5 h-5" />;
+      return <ChevronLeft className="w-6 h-6" />;
     case "right":
-      return <ChevronRight className="w-5 h-5" />;
+      return <ChevronRight className="w-6 h-6" />;
     case "up":
-      return <ChevronUp className="w-5 h-5" />;
+      return <ChevronUp className="w-6 h-6" />;
     case "down":
-      return <ChevronDown className="w-5 h-5" />;
+      return <ChevronDown className="w-6 h-6" />;
     case "enter":
-      return <Building2 className="w-5 h-5" />;
+      return <Building2 className="w-6 h-6" />;
     case "arrive":
-      return <CheckCircle2 className="w-5 h-5" />;
+      return <CheckCircle2 className="w-6 h-6" />;
     default:
-      return <Navigation className="w-5 h-5" />;
+      return <Navigation className="w-6 h-6" />;
+  }
+}
+
+// Get direction text for voice
+function getVoiceText(instruction: NavigationInstruction, buildingName: string, roomName: string): string {
+  const distanceText = instruction.distance > 0 ? `in about ${instruction.distance} meters` : "";
+  
+  switch (instruction.direction) {
+    case "enter":
+      return `Entering ${buildingName}. ${distanceText}`;
+    case "left":
+      return `Turn left ${distanceText}. ${instruction.text}`;
+    case "right":
+      return `Turn right ${distanceText}. ${instruction.text}`;
+    case "up":
+      return `Go upstairs to floor ${instruction.floor}. ${instruction.text}`;
+    case "down":
+      return `Go downstairs to floor ${instruction.floor}. ${instruction.text}`;
+    case "arrive":
+      return `You have arrived at ${roomName}. ${instruction.text}`;
+    default:
+      return instruction.text;
   }
 }
 
@@ -67,8 +92,11 @@ export function IndoorNavigationScreen({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
-  const [mapScale, setMapScale] = useState(1.5);
+  const [mapScale, setMapScale] = useState(1.2);
   const [hasArrived, setHasArrived] = useState(false);
+  const [coveredDistance, setCoveredDistance] = useState(0);
+  const lastSpokenRef = useRef<string>("");
+  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Compute route on mount
   useEffect(() => {
@@ -88,26 +116,86 @@ export function IndoorNavigationScreen({
     return route.instructions[Math.min(currentStepIndex, route.instructions.length - 1)];
   }, [route, currentStepIndex]);
 
+  // Current node ID for map
+  const currentNodeId = currentInstruction?.nodeId;
+
   // Progress percentage
   const progress = useMemo(() => {
     if (!route || route.instructions.length <= 1) return 0;
     return (currentStepIndex / (route.instructions.length - 1)) * 100;
   }, [route, currentStepIndex]);
 
-  // Speak instruction
+  // Calculate covered and remaining distance
+  const { distanceCovered, distanceRemaining } = useMemo(() => {
+    if (!route) return { distanceCovered: 0, distanceRemaining: 0 };
+    
+    let covered = 0;
+    let remaining = 0;
+    
+    route.instructions.forEach((inst, idx) => {
+      if (idx < currentStepIndex) {
+        covered += inst.distance;
+      } else {
+        remaining += inst.distance;
+      }
+    });
+    
+    return { distanceCovered: covered, distanceRemaining: remaining };
+  }, [route, currentStepIndex]);
+
+  // Speak instruction with enhanced voice
   const speakInstruction = useCallback(
     (instruction: NavigationInstruction) => {
       if (isMuted || typeof window === "undefined") return;
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(instruction.text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        window.speechSynthesis.speak(utterance);
+      if (!("speechSynthesis" in window)) return;
+      
+      const voiceText = getVoiceText(instruction, building.name, room.name);
+      
+      // Don't repeat the same instruction
+      if (voiceText === lastSpokenRef.current) return;
+      lastSpokenRef.current = voiceText;
+      
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(voiceText);
+      utterance.rate = 0.85;
+      utterance.pitch = 1.05;
+      utterance.volume = 1;
+      
+      // Try to use a better voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => 
+        v.name.includes("Google") || 
+        v.name.includes("Samantha") || 
+        v.name.includes("Daniel") ||
+        v.lang.startsWith("en")
+      );
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
+      
+      speechSynthRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
     },
-    [isMuted]
+    [isMuted, building.name, room.name]
   );
+
+  // Speak initial instruction
+  useEffect(() => {
+    if (route && route.instructions.length > 0 && !isMuted) {
+      // Wait for voices to load
+      const speak = () => {
+        speakInstruction(route.instructions[0]);
+      };
+      
+      if (window.speechSynthesis.getVoices().length > 0) {
+        speak();
+      } else {
+        window.speechSynthesis.onvoiceschanged = speak;
+      }
+    }
+  }, [route, isMuted, speakInstruction]);
 
   // Auto-advance with animation
   useEffect(() => {
@@ -119,6 +207,16 @@ export function IndoorNavigationScreen({
         if (next >= route.instructions.length) {
           setIsPlaying(false);
           setHasArrived(true);
+          // Speak arrival
+          if (!isMuted) {
+            speakInstruction({
+              text: `Congratulations! You have arrived at ${room.name}`,
+              direction: "arrive",
+              distance: 0,
+              floor: room.floor,
+              nodeId: room.nodeId,
+            });
+          }
           return prev;
         }
         // Update floor when changing
@@ -130,10 +228,10 @@ export function IndoorNavigationScreen({
         speakInstruction(nextInstruction);
         return next;
       });
-    }, 3000);
+    }, 3500);
 
     return () => clearInterval(interval);
-  }, [isPlaying, route, speakInstruction]);
+  }, [isPlaying, route, speakInstruction, isMuted, room.name, room.floor, room.nodeId]);
 
   // Manual step controls
   const nextStep = () => {
@@ -156,67 +254,73 @@ export function IndoorNavigationScreen({
     setCurrentStepIndex(prev);
     const prevInstruction = route.instructions[prev];
     if (prevInstruction?.floor) setCurrentFloor(prevInstruction.floor);
+    speakInstruction(prevInstruction);
   };
 
   const resetNavigation = () => {
     setCurrentStepIndex(0);
     setIsPlaying(false);
     setHasArrived(false);
+    lastSpokenRef.current = "";
     if (route?.instructions[0]?.floor) {
       setCurrentFloor(route.instructions[0].floor);
+    }
+    if (route?.instructions[0]) {
+      speakInstruction(route.instructions[0]);
     }
   };
 
   // Zoom controls
-  const zoomIn = () => setMapScale((s) => Math.min(s + 0.25, 3));
-  const zoomOut = () => setMapScale((s) => Math.max(s - 0.25, 0.75));
-
-  // Get nodes for current floor
-  const floorNodes = useMemo(() => {
-    return nodes.filter((n) => n.floor === currentFloor);
-  }, [nodes, currentFloor]);
-
-  // Get edges for current floor
-  const floorEdges = useMemo(() => {
-    const nodeIds = new Set(floorNodes.map((n) => n.id));
-    return edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  }, [floorNodes, edges]);
-
-  // Current position on path
-  const currentNodeId = currentInstruction?.nodeId;
+  const zoomIn = () => setMapScale((s) => Math.min(s + 0.2, 2.5));
+  const zoomOut = () => setMapScale((s) => Math.max(s - 0.2, 0.8));
 
   // Building colors
   const buildingColors = getBuildingColors(building.type);
 
   // Handle arrival button click
   const handleArrivalClick = () => {
+    window.speechSynthesis.cancel();
     onArrival();
+  };
+
+  // Toggle mute
+  const toggleMute = () => {
+    if (!isMuted) {
+      window.speechSynthesis.cancel();
+    }
+    setIsMuted(!isMuted);
   };
 
   return (
     <div className="h-full flex flex-col bg-[#F5F8FC]">
       {/* Header */}
-      <header className="bg-gradient-to-r from-[#0066CC] to-[#004499] text-white shrink-0">
+      <header className="bg-gradient-to-r from-[#0066CC] to-[#004499] text-white shrink-0 shadow-lg">
         <div className="flex items-center gap-3 px-4 py-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={onBack}
-            className="h-10 w-10 shrink-0 bg-white/10 text-white hover:bg-white/20 rounded-lg"
+            className="h-10 w-10 shrink-0 bg-white/10 text-white hover:bg-white/20 rounded-xl"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold truncate">Indoor Navigation</h1>
-            <p className="text-sm text-white/80 truncate">
-              {building.shortName} → {room.name}
+            <p className="text-sm text-white/80 truncate flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5" />
+              {building.shortName}
+              <span className="text-white/50 mx-1">→</span>
+              <MapPin className="w-3.5 h-3.5" />
+              {room.name}
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsMuted(!isMuted)}
-            className="h-10 w-10 bg-white/10 hover:bg-white/20 rounded-lg"
+            onClick={toggleMute}
+            className={`h-10 w-10 rounded-xl transition-colors ${
+              isMuted ? "bg-red-500/20 text-red-200" : "bg-white/10 hover:bg-white/20"
+            }`}
           >
             {isMuted ? (
               <VolumeX className="w-5 h-5" />
@@ -226,35 +330,42 @@ export function IndoorNavigationScreen({
           </Button>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar with distance info */}
         <div className="px-4 pb-3">
-          <div className="bg-white/20 rounded-full h-2">
+          <div className="flex items-center justify-between text-xs text-white/70 mb-1.5">
+            <span className="flex items-center gap-1">
+              <Footprints className="w-3 h-3" />
+              {distanceCovered}m covered
+            </span>
+            <span className="font-medium text-white">
+              Step {currentStepIndex + 1} / {route?.instructions.length || 0}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {distanceRemaining}m left
+            </span>
+          </div>
+          <div className="bg-white/20 rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-white rounded-full h-2 transition-all duration-500"
+              className="bg-gradient-to-r from-white to-white/80 rounded-full h-2.5 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
-          </div>
-          <div className="flex justify-between text-xs mt-1 text-white/70">
-            <span>
-              Step {currentStepIndex + 1} of {route?.instructions.length || 0}
-            </span>
-            <span>~{route?.estimatedTimeSeconds || 0}s remaining</span>
           </div>
         </div>
       </header>
 
-      {/* Floor Plan */}
-      <div className="flex-1 relative overflow-hidden bg-[#E8F3FF]">
+      {/* Floor Plan with SVG */}
+      <div className="flex-1 relative overflow-hidden bg-gradient-to-b from-[#E8F3FF] to-[#F0F5FF]">
         {/* Floor selector tabs */}
         {route && route.floors.length > 1 && (
-          <div className="absolute top-3 left-3 z-10 flex gap-1 bg-white rounded-lg p-1 shadow-lg">
+          <div className="absolute top-3 left-3 z-10 flex gap-1.5 bg-white/95 backdrop-blur-sm rounded-xl p-1.5 shadow-lg border border-slate-200/50">
             {route.floors.map((floor) => (
               <button
                 key={floor}
                 onClick={() => setCurrentFloor(floor)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`w-10 h-10 rounded-lg text-sm font-semibold transition-all ${
                   currentFloor === floor
-                    ? "bg-[#0066CC] text-white"
+                    ? "bg-[#0066CC] text-white shadow-md"
                     : "bg-transparent text-[#4466AA] hover:bg-[#E8F3FF]"
                 }`}
               >
@@ -265,299 +376,113 @@ export function IndoorNavigationScreen({
         )}
 
         {/* Zoom controls */}
-        <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 bg-white rounded-lg p-1 shadow-lg">
+        <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm rounded-xl p-1.5 shadow-lg border border-slate-200/50">
           <button
             onClick={zoomIn}
-            className="p-2 rounded-md hover:bg-[#E8F3FF] transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[#E8F3FF] transition-colors"
           >
             <ZoomIn className="w-5 h-5 text-[#0066CC]" />
           </button>
-          <div className="px-2 py-1 text-center text-xs font-medium text-[#4466AA]">
+          <div className="h-8 flex items-center justify-center text-xs font-semibold text-[#4466AA] bg-[#E8F3FF] rounded-md">
             {Math.round(mapScale * 100)}%
           </div>
           <button
             onClick={zoomOut}
-            className="p-2 rounded-md hover:bg-[#E8F3FF] transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[#E8F3FF] transition-colors"
           >
             <ZoomOut className="w-5 h-5 text-[#0066CC]" />
           </button>
         </div>
 
         {/* SVG Floor Plan */}
-        <svg
-          viewBox="0 0 150 150"
-          className="w-full h-full"
-          style={{
-            transform: `scale(${mapScale})`,
-            transformOrigin: "center",
-            transition: "transform 0.3s ease",
-          }}
-        >
-          {/* Background grid */}
-          <defs>
-            <pattern
-              id="indoor-grid"
-              width="10"
-              height="10"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M 10 0 L 0 0 0 10"
-                fill="none"
-                stroke="#D0E4F7"
-                strokeWidth="0.5"
-              />
-            </pattern>
-          </defs>
-          <rect width="150" height="150" fill="url(#indoor-grid)" />
-
-          {/* Building outline */}
-          <rect
-            x="10"
-            y="10"
-            width="130"
-            height="130"
-            fill={buildingColors.fill}
-            stroke={buildingColors.stroke}
-            strokeWidth="2"
-            rx="4"
+        <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
+          <IndoorFloorPlanSVG
+            building={building}
+            currentFloor={currentFloor}
+            targetRoom={room}
+            currentNodeId={currentNodeId}
+            path={route?.path}
+            currentStepIndex={currentStepIndex}
+            scale={mapScale}
+            width={Math.min(400, window?.innerWidth - 32) || 360}
+            height={300}
           />
+        </div>
 
-          {/* Floor label */}
-          <text x="75" y="22" textAnchor="middle" fontSize="8" fill="#4466AA">
-            Floor {currentFloor} - {building.shortName}
-          </text>
-
-          {/* Corridor lines */}
-          {floorEdges.map((edge, i) => {
-            const fromNode = floorNodes.find((n) => n.id === edge.from);
-            const toNode = floorNodes.find((n) => n.id === edge.to);
-            if (!fromNode || !toNode) return null;
-
-            // Check if this edge is on the path
-            const pathIndex = route?.path.indexOf(edge.from) ?? -1;
-            const nextIndex = route?.path.indexOf(edge.to) ?? -1;
-            const isOnPath =
-              pathIndex >= 0 &&
-              nextIndex >= 0 &&
-              Math.abs(pathIndex - nextIndex) === 1;
-            const isPast =
-              isOnPath && pathIndex <= currentStepIndex && nextIndex <= currentStepIndex;
-            const isCurrent =
-              isOnPath &&
-              (currentNodeId === edge.from || currentNodeId === edge.to);
-
-            return (
-              <line
-                key={i}
-                x1={15 + fromNode.x * 1.2}
-                y1={20 + fromNode.y * 1.1}
-                x2={15 + toNode.x * 1.2}
-                y2={20 + toNode.y * 1.1}
-                stroke={
-                  isCurrent
-                    ? "#0066CC"
-                    : isPast
-                    ? "#00AA66"
-                    : isOnPath
-                    ? "#4466AA"
-                    : "#C0D8EE"
-                }
-                strokeWidth={isOnPath ? 3 : 1.5}
-                strokeLinecap="round"
-                strokeDasharray={edge.type === "stairs" ? "3,3" : undefined}
-              />
-            );
-          })}
-
-          {/* Nodes */}
-          {floorNodes.map((node) => {
-            const isCurrent = currentNodeId === node.id;
-            const isTarget = node.roomId === room.id;
-            const isOnPath = route?.path.includes(node.id);
-            const pathIndex = route?.path.indexOf(node.id) ?? -1;
-            const isPast = pathIndex >= 0 && pathIndex < currentStepIndex;
-
-            let fill = "#FFFFFF";
-            let stroke = "#8899BB";
-            let radius = 4;
-
-            if (node.type === "room") {
-              const rc = getRoomColors(
-                building.rooms.find((r) => r.id === node.roomId)?.type || "room"
-              );
-              fill = rc.fill;
-              stroke = rc.stroke;
-              radius = 6;
-            } else if (node.type === "stairs" || node.type === "lift") {
-              fill = "#FFF8E8";
-              stroke = "#F5A800";
-              radius = 5;
-            } else if (node.type === "entry") {
-              fill = "#E8FFE8";
-              stroke = "#00AA44";
-              radius = 5;
-            }
-
-            if (isTarget) {
-              fill = "#00AA66";
-              stroke = "#006644";
-              radius = 8;
-            }
-
-            if (isCurrent) {
-              fill = "#0066CC";
-              stroke = "#002255";
-              radius = 7;
-            }
-
-            if (isPast && isOnPath && !isCurrent && !isTarget) {
-              fill = "#00AA66";
-              stroke = "#006644";
-            }
-
-            const cx = 15 + node.x * 1.2;
-            const cy = 20 + node.y * 1.1;
-
-            return (
-              <g key={node.id}>
-                {/* Pulse animation for current */}
-                {isCurrent && (
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={radius + 4}
-                    fill="none"
-                    stroke="#0066CC"
-                    strokeWidth="2"
-                    opacity="0.5"
-                  >
-                    <animate
-                      attributeName="r"
-                      from={radius + 2}
-                      to={radius + 10}
-                      dur="1.5s"
-                      repeatCount="indefinite"
-                    />
-                    <animate
-                      attributeName="opacity"
-                      from="0.6"
-                      to="0"
-                      dur="1.5s"
-                      repeatCount="indefinite"
-                    />
-                  </circle>
-                )}
-
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={radius}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={isCurrent || isTarget ? 2 : 1}
-                />
-
-                {/* Room labels */}
-                {node.type === "room" && (
-                  <text
-                    x={cx}
-                    y={cy + 12}
-                    textAnchor="middle"
-                    fontSize="5"
-                    fill={isTarget ? "#006644" : "#4466AA"}
-                    fontWeight={isTarget ? "bold" : "normal"}
-                  >
-                    {node.label?.split(" - ")[0]}
-                  </text>
-                )}
-
-                {/* Stairs/lift icons */}
-                {node.type === "stairs" && (
-                  <text
-                    x={cx}
-                    y={cy + 2}
-                    textAnchor="middle"
-                    fontSize="6"
-                    fill={stroke}
-                  >
-                    ↕
-                  </text>
-                )}
-
-                {node.type === "lift" && (
-                  <text
-                    x={cx}
-                    y={cy + 2}
-                    textAnchor="middle"
-                    fontSize="5"
-                    fill={stroke}
-                  >
-                    ▲▼
-                  </text>
-                )}
-
-                {/* Entry marker */}
-                {node.type === "entry" && (
-                  <text
-                    x={cx}
-                    y={cy - 8}
-                    textAnchor="middle"
-                    fontSize="5"
-                    fill="#00AA44"
-                  >
-                    Entry
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Target marker */}
-          <g>
-            <text x="75" y="145" textAnchor="middle" fontSize="6" fill="#006644">
-              🎯 {room.name} (Room {room.num})
-            </text>
-          </g>
-        </svg>
+        {/* Legend */}
+        <div className="absolute bottom-3 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-slate-200/50">
+          <div className="flex items-center gap-3 text-[10px]">
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#0066CC]" />
+              <span className="text-slate-600">You</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#00AA66]" />
+              <span className="text-slate-600">Target</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-0.5 bg-[#6633BB]" />
+              <span className="text-slate-600">Path</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Instruction Panel */}
-      <div className="bg-white border-t border-[#D0E4F7] shrink-0">
+      <div className="bg-white border-t border-[#D0E4F7] shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
         {/* Toggle button */}
         <button
           onClick={() => setShowInstructions(!showInstructions)}
-          className="w-full flex items-center justify-center py-1 text-[#8899BB]"
+          className="w-full flex items-center justify-center py-1.5 text-[#8899BB] hover:text-[#4466AA] transition-colors"
         >
-          {showInstructions ? (
-            <ChevronDown className="w-5 h-5" />
-          ) : (
-            <ChevronUp className="w-5 h-5" />
-          )}
+          <div className="w-10 h-1 bg-slate-200 rounded-full" />
         </button>
 
         {showInstructions && currentInstruction && (
           <div className="px-4 pb-4">
-            {/* Current instruction */}
+            {/* Current instruction card */}
             <div
-              className={`rounded-xl p-4 mb-3 ${
+              className={`rounded-2xl p-4 mb-4 shadow-lg ${
                 hasArrived
                   ? "bg-gradient-to-r from-[#00AA66] to-[#008844]"
                   : "bg-gradient-to-r from-[#0066CC] to-[#004499]"
               }`}
             >
               <div className="flex items-center gap-4 text-white">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 shadow-inner">
                   {getDirectionIcon(currentInstruction.direction)}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-lg">{currentInstruction.text}</p>
-                  {currentInstruction.distance > 0 && (
-                    <p className="text-white/70 text-sm">
-                      {currentInstruction.distance}m • Floor {currentInstruction.floor}
-                    </p>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-lg leading-tight">{currentInstruction.text}</p>
+                  <div className="flex items-center gap-3 mt-1.5 text-white/75 text-sm">
+                    {currentInstruction.distance > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Footprints className="w-3.5 h-3.5" />
+                        {currentInstruction.distance}m
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5" />
+                      Floor {currentInstruction.floor}
+                    </span>
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Distance progress cards */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-[#E8F3FF] rounded-xl p-3 text-center">
+                <p className="text-[10px] text-[#4466AA] font-medium uppercase tracking-wide">Covered</p>
+                <p className="text-xl font-bold text-[#0066CC]">{distanceCovered}m</p>
+              </div>
+              <div className="bg-[#EEE8FF] rounded-xl p-3 text-center">
+                <p className="text-[10px] text-[#6633BB] font-medium uppercase tracking-wide">Progress</p>
+                <p className="text-xl font-bold text-[#6633BB]">{Math.round(progress)}%</p>
+              </div>
+              <div className="bg-[#E8FFF0] rounded-xl p-3 text-center">
+                <p className="text-[10px] text-[#00883A] font-medium uppercase tracking-wide">Remaining</p>
+                <p className="text-xl font-bold text-[#00883A]">{distanceRemaining}m</p>
               </div>
             </div>
 
@@ -568,7 +493,7 @@ export function IndoorNavigationScreen({
                   variant="outline"
                   size="icon"
                   onClick={resetNavigation}
-                  className="h-12 w-12 rounded-full border-[#D0E4F7]"
+                  className="h-12 w-12 rounded-xl border-[#D0E4F7] hover:bg-[#E8F3FF]"
                 >
                   <RotateCcw className="w-5 h-5 text-[#4466AA]" />
                 </Button>
@@ -577,13 +502,17 @@ export function IndoorNavigationScreen({
                   size="icon"
                   onClick={prevStep}
                   disabled={currentStepIndex === 0}
-                  className="h-12 w-12 rounded-full border-[#D0E4F7]"
+                  className="h-12 w-12 rounded-xl border-[#D0E4F7] hover:bg-[#E8F3FF] disabled:opacity-40"
                 >
                   <ChevronLeft className="w-5 h-5 text-[#4466AA]" />
                 </Button>
                 <Button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="h-14 w-14 rounded-full bg-[#0066CC] hover:bg-[#004499]"
+                  className={`h-14 w-20 rounded-xl font-semibold shadow-lg ${
+                    isPlaying 
+                      ? "bg-red-500 hover:bg-red-600" 
+                      : "bg-[#0066CC] hover:bg-[#004499]"
+                  }`}
                 >
                   {isPlaying ? (
                     <Pause className="w-6 h-6" />
@@ -596,16 +525,29 @@ export function IndoorNavigationScreen({
                   size="icon"
                   onClick={nextStep}
                   disabled={currentStepIndex >= (route?.instructions.length || 1) - 1}
-                  className="h-12 w-12 rounded-full border-[#D0E4F7]"
+                  className="h-12 w-12 rounded-xl border-[#D0E4F7] hover:bg-[#E8F3FF] disabled:opacity-40"
                 >
                   <ChevronRight className="w-5 h-5 text-[#4466AA]" />
                 </Button>
-                <div className="w-12" /> {/* Spacer for symmetry */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleMute}
+                  className={`h-12 w-12 rounded-xl border-[#D0E4F7] ${
+                    isMuted ? "bg-red-50 border-red-200" : "hover:bg-[#E8F3FF]"
+                  }`}
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-5 h-5 text-red-500" />
+                  ) : (
+                    <Volume2 className="w-5 h-5 text-[#4466AA]" />
+                  )}
+                </Button>
               </div>
             ) : (
               <Button
                 onClick={handleArrivalClick}
-                className="w-full h-14 rounded-xl bg-[#00AA66] hover:bg-[#008844] text-white font-semibold text-lg"
+                className="w-full h-14 rounded-xl bg-gradient-to-r from-[#00AA66] to-[#008844] hover:from-[#008844] hover:to-[#006633] text-white font-bold text-lg shadow-lg"
               >
                 <CheckCircle2 className="w-6 h-6 mr-2" />
                 You&apos;ve Arrived!

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Volume2, VolumeX, RotateCcw, Navigation, Play, Pause, ChevronUp, ChevronDown, Minus, Plus, Gauge, ZoomIn, ZoomOut, Building2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { X, Volume2, VolumeX, RotateCcw, Navigation, Play, Pause, ChevronUp, ChevronDown, Minus, Plus, Gauge, ZoomIn, ZoomOut, Building2, Footprints, MapPin, Clock, Route, Crosshair, Focus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampusMapSVG } from "@/components/urnav/campus-map-svg";
 import { FloorSwitcher } from "@/components/urnav/floor-switcher";
@@ -15,27 +15,83 @@ interface NavigatingScreenProps {
   onArrival: () => void;
 }
 
-// Demo instructions generator
-function generateInstructions(progress: number, destinationName: string, hasRoom: boolean) {
-  if (progress < 0.15) {
-    return { text: "Head north on the main road", direction: "straight" as const, distance: 85 };
-  } else if (progress < 0.35) {
-    return { text: "Continue past Administration Block", direction: "straight" as const, distance: 65 };
+// Demo instructions generator with detailed voice-friendly text
+interface NavigationInstruction {
+  text: string;
+  voiceText: string;
+  direction: "straight" | "left" | "right" | "arrive";
+  distance: number;
+  landmark?: string;
+}
+
+function generateInstructions(progress: number, destinationName: string, hasRoom: boolean): NavigationInstruction {
+  if (progress < 0.12) {
+    return { 
+      text: "Head north on main road", 
+      voiceText: "Head north on the main road. Continue straight for about 85 meters.",
+      direction: "straight", 
+      distance: 85,
+      landmark: "Main Gate"
+    };
+  } else if (progress < 0.25) {
+    return { 
+      text: "Pass Security Office on right", 
+      voiceText: "Continue straight. The Security Office will be on your right.",
+      direction: "straight", 
+      distance: 70,
+      landmark: "Security Office"
+    };
+  } else if (progress < 0.40) {
+    return { 
+      text: "Continue past Admin Block", 
+      voiceText: "Keep going straight. You will pass the Administration Block on your right.",
+      direction: "straight", 
+      distance: 55,
+      landmark: "Administration Block"
+    };
   } else if (progress < 0.55) {
-    return { text: "Turn right at central junction", direction: "right" as const, distance: 45 };
-  } else if (progress < 0.75) {
-    return { text: `${destinationName} is on your left`, direction: "left" as const, distance: 25 };
+    return { 
+      text: "Turn right at junction", 
+      voiceText: "In about 40 meters, turn right at the central junction.",
+      direction: "right", 
+      distance: 40,
+      landmark: "Central Junction"
+    };
+  } else if (progress < 0.70) {
+    return { 
+      text: "Continue on campus road", 
+      voiceText: "Continue straight on the campus road. Your destination is ahead.",
+      direction: "straight", 
+      distance: 30,
+      landmark: "Campus Road"
+    };
+  } else if (progress < 0.85) {
+    return { 
+      text: `${destinationName} ahead on left`, 
+      voiceText: `${destinationName} is coming up on your left. About 20 meters remaining.`,
+      direction: "left", 
+      distance: 20,
+      landmark: destinationName
+    };
   } else if (progress < 0.95) {
     return { 
-      text: hasRoom ? `Entering ${destinationName} building` : `Arriving at ${destinationName}`, 
-      direction: "arrive" as const, 
-      distance: 5 
+      text: hasRoom ? `Entering ${destinationName}` : `Arriving at ${destinationName}`, 
+      voiceText: hasRoom 
+        ? `You are approaching ${destinationName}. Prepare to enter the building for indoor navigation.`
+        : `You are arriving at ${destinationName}. Your destination is on the left.`,
+      direction: "arrive", 
+      distance: 5,
+      landmark: destinationName
     };
   } else {
     return { 
-      text: hasRoom ? "Continue to indoor navigation" : `You have arrived at ${destinationName}`, 
-      direction: "arrive" as const, 
-      distance: 0 
+      text: hasRoom ? "Starting indoor navigation" : `Arrived at ${destinationName}`, 
+      voiceText: hasRoom 
+        ? `You have reached ${destinationName}. Indoor navigation will begin shortly.`
+        : `Congratulations! You have arrived at ${destinationName}.`,
+      direction: "arrive", 
+      distance: 0,
+      landmark: destinationName
     };
   }
 }
@@ -53,6 +109,8 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
   const [zoom, setZoom] = useState(1);
   const [manualZoom, setManualZoom] = useState<number | null>(null);
   const [hasReachedBuilding, setHasReachedBuilding] = useState(false);
+  const [autoZoom, setAutoZoom] = useState(true);
+  const mapRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void; centerOnUser: () => void } | null>(null);
 
   // Get destination building and room
   const destinationBuilding = ALL_BUILDINGS.find(b => b.id === destinationBuildingId);
@@ -109,21 +167,87 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
   const progress = demoState?.totalProgress || 0;
   const currentInstruction = generateInstructions(progress, destinationName, hasRoom);
   const remainingDistance = currentInstruction.distance;
+  
+  // Calculate total route distance and covered distance
+  const totalRouteDistance = useMemo(() => 280, []); // Total route distance in meters (from DEMO_ROUTES)
+  const coveredDistance = useMemo(() => Math.round(progress * totalRouteDistance), [progress, totalRouteDistance]);
+  const distanceRemaining = useMemo(() => Math.round((1 - progress) * totalRouteDistance), [progress, totalRouteDistance]);
+  const estimatedTimeMin = useMemo(() => Math.max(1, Math.ceil(distanceRemaining / (speed * 60))), [distanceRemaining, speed]);
 
-  // Text-to-speech for instructions
+  // Text-to-speech for instructions with enhanced voice
   const lastSpokenRef = useRef("");
+  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  
+  // Function to speak text
+  const speakText = useCallback((text: string) => {
+    if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (text === lastSpokenRef.current) return;
+    
+    lastSpokenRef.current = text;
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.85;
+    utterance.pitch = 1.05;
+    utterance.volume = 1;
+    
+    // Try to use a better voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => 
+      v.name.includes("Google") || 
+      v.name.includes("Samantha") || 
+      v.name.includes("Daniel") ||
+      v.lang.startsWith("en")
+    );
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+    
+    speechSynthRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [voiceEnabled]);
+
+  // Speak instruction when it changes
   useEffect(() => {
-    if (voiceEnabled && currentInstruction.text && currentInstruction.text !== lastSpokenRef.current) {
-      lastSpokenRef.current = currentInstruction.text;
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(currentInstruction.text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        window.speechSynthesis.speak(utterance);
+    if (voiceEnabled && currentInstruction.voiceText) {
+      speakText(currentInstruction.voiceText);
+    }
+  }, [voiceEnabled, currentInstruction.voiceText, speakText]);
+  
+  // Initialize voices on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // Load voices
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  // Auto-zoom based on progress - zoom in as user gets closer to destination
+  useEffect(() => {
+    if (!autoZoom || manualZoom !== null) return;
+    
+    // Calculate optimal zoom based on progress
+    // Start at 1.5x, gradually increase to 3x as we approach destination
+    let targetZoom = 1.5;
+    if (progress > 0.2) targetZoom = 1.8;
+    if (progress > 0.4) targetZoom = 2.0;
+    if (progress > 0.6) targetZoom = 2.3;
+    if (progress > 0.8) targetZoom = 2.6;
+    if (progress > 0.9) targetZoom = 3.0;
+    
+    setZoom(targetZoom);
+  }, [progress, autoZoom, manualZoom]);
+
+  // Auto-center on user when position changes significantly
+  useEffect(() => {
+    if (autoZoom && mapRef.current && demoState) {
+      // Center on user every few updates
+      const shouldCenter = Math.floor(progress * 20) !== Math.floor((progress - 0.01) * 20);
+      if (shouldCenter) {
+        mapRef.current.centerOnUser();
       }
     }
-  }, [voiceEnabled, currentInstruction.text]);
+  }, [progress, autoZoom, demoState]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -181,7 +305,8 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
       {/* Map Container - Takes all available space */}
       <div ref={containerRef} className="flex-1 relative min-h-0">
         {dimensions.width > 0 && dimensions.height > 0 && (
-          <CampusMapSVG
+<CampusMapSVG
+            ref={mapRef}
             width={dimensions.width}
             height={dimensions.height}
             destinationBuilding={destinationBuildingId}
@@ -276,17 +401,60 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
             onClick={handleRestart}
             className="h-11 w-11 rounded-xl shadow-lg bg-white border border-slate-200/80"
           >
-            <RotateCcw className="h-5 w-5 text-slate-600" />
+<RotateCcw className="h-5 w-5 text-slate-600" />
+          </Button>
+
+          {/* Auto-Zoom Toggle */}
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => {
+              setAutoZoom(!autoZoom);
+              if (!autoZoom) {
+                setManualZoom(null);
+              }
+            }}
+            className={`h-11 w-11 rounded-xl shadow-lg border border-slate-200/80 ${
+              autoZoom 
+                ? 'bg-[#0066CC] text-white hover:bg-[#004499]' 
+                : 'bg-white hover:bg-slate-100'
+            }`}
+            title={autoZoom ? 'Auto-zoom enabled' : 'Auto-zoom disabled'}
+          >
+            <Focus className={`h-5 w-5 ${autoZoom ? 'text-white' : 'text-slate-600'}`} />
           </Button>
         </div>
       </div>
 
-      {/* Compact Bottom Navigation Panel */}
-      <div className={`shrink-0 bg-[#0055AA] text-white rounded-t-2xl shadow-lg transition-all duration-300 ${panelExpanded ? 'pb-4' : ''}`}>
+      {/* Enhanced Bottom Navigation Panel */}
+      <div className={`shrink-0 bg-gradient-to-r from-[#0055AA] to-[#004499] text-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 ${panelExpanded ? 'pb-4' : ''}`}>
+        {/* Distance Progress Bar - Always visible at top */}
+        <div className="px-4 pt-3 pb-1">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="flex items-center gap-1 text-white/70">
+              <Footprints className="w-3 h-3" />
+              {coveredDistance}m covered
+            </span>
+            <span className="font-bold text-white">{Math.round(progress * 100)}%</span>
+            <span className="flex items-center gap-1 text-white/70">
+              <MapPin className="w-3 h-3" />
+              {distanceRemaining}m left
+            </span>
+          </div>
+          <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-white to-white/80 rounded-full transition-all duration-500 ease-out relative"
+              style={{ width: `${progress * 100}%` }}
+            >
+              <div className="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full animate-pulse" />
+            </div>
+          </div>
+        </div>
+
         {/* Expand/Collapse handle */}
         <button
           onClick={() => setPanelExpanded(!panelExpanded)}
-          className="w-full flex items-center justify-center py-1.5"
+          className="w-full flex items-center justify-center py-1"
         >
           <div className="w-10 h-1 bg-white/30 rounded-full" />
         </button>
@@ -295,25 +463,27 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
         <div className="px-4 pb-3">
           <div className="flex items-center gap-4">
             {/* Direction icon */}
-            <div className="h-14 w-14 shrink-0 rounded-xl bg-white/15 flex items-center justify-center">
+            <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-inner">
               <DirectionArrow direction={currentInstruction.direction} />
             </div>
 
             {/* Instruction text */}
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-semibold leading-tight truncate">{currentInstruction.text}</p>
-              <div className="flex items-center gap-3 mt-1 text-sm text-white/80">
-                <span>{remainingDistance}m</span>
-                <span>•</span>
-                <span>{Math.ceil((100 - progress * 100) / 15)} min</span>
+              <p className="text-xl font-bold leading-tight truncate">{currentInstruction.text}</p>
+              <div className="flex items-center gap-2 mt-1.5 text-sm text-white/80">
+                <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full">
+                  <Route className="w-3 h-3" />
+                  {remainingDistance}m
+                </span>
+                <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3" />
+                  {estimatedTimeMin} min
+                </span>
                 {hasRoom && (
-                  <>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3" />
-                      Indoor next
-                    </span>
-                  </>
+                  <span className="flex items-center gap-1 bg-[#6633BB]/40 px-2 py-0.5 rounded-full">
+                    <Building2 className="w-3 h-3" />
+                    Indoor
+                  </span>
                 )}
               </div>
             </div>
@@ -323,47 +493,62 @@ export function NavigatingScreen({ destinationBuildingId, destinationRoomId, onC
               variant="ghost"
               size="icon"
               onClick={onCancel}
-              className="h-10 w-10 shrink-0 rounded-lg bg-white/15 hover:bg-white/25"
+              className="h-10 w-10 shrink-0 rounded-xl bg-white/15 hover:bg-white/25 border border-white/10"
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
 
-          {/* Progress bar */}
-          <div className="mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white rounded-full transition-all duration-300"
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
-
           {/* Room destination info */}
           {hasRoom && destinationRoom && (
-            <div className="mt-2 px-3 py-2 rounded-lg bg-white/10 text-sm">
-              <span className="text-white/70">Going to:</span>{" "}
-              <span className="font-medium">{destinationRoom.name}</span>
-              <span className="text-white/60 ml-1">(Floor {destinationRoom.floor})</span>
+            <div className="mt-3 px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-sm flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-white/70 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-white/70">Final destination: </span>
+                <span className="font-semibold">{destinationRoom.name}</span>
+                <span className="text-white/60 ml-1">(Floor {destinationRoom.floor})</span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Expanded details */}
+        {/* Expanded details with distance stats */}
         {panelExpanded && (
-          <div className="px-4 pt-2 border-t border-white/10">
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="p-2 rounded-lg bg-white/10">
-                <p className="text-xs text-white/70">Distance</p>
-                <p className="text-lg font-semibold">{Math.round((1 - progress) * 200)}m</p>
+          <div className="px-4 pt-3 border-t border-white/10">
+            {/* Distance stats grid */}
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="p-2.5 rounded-xl bg-white/10 text-center">
+                <Footprints className="w-4 h-4 mx-auto mb-1 text-white/70" />
+                <p className="text-lg font-bold">{coveredDistance}</p>
+                <p className="text-[10px] text-white/60 uppercase tracking-wide">Covered</p>
               </div>
-              <div className="p-2 rounded-lg bg-white/10">
-                <p className="text-xs text-white/70">ETA</p>
-                <p className="text-lg font-semibold">{Math.ceil((100 - progress * 100) / 15)} min</p>
+              <div className="p-2.5 rounded-xl bg-white/10 text-center">
+                <MapPin className="w-4 h-4 mx-auto mb-1 text-white/70" />
+                <p className="text-lg font-bold">{distanceRemaining}</p>
+                <p className="text-[10px] text-white/60 uppercase tracking-wide">Remaining</p>
               </div>
-              <div className="p-2 rounded-lg bg-white/10">
-                <p className="text-xs text-white/70">Speed</p>
-                <p className="text-lg font-semibold">{speed.toFixed(1)}x</p>
+              <div className="p-2.5 rounded-xl bg-white/10 text-center">
+                <Clock className="w-4 h-4 mx-auto mb-1 text-white/70" />
+                <p className="text-lg font-bold">{estimatedTimeMin}</p>
+                <p className="text-[10px] text-white/60 uppercase tracking-wide">Min ETA</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/10 text-center">
+                <Gauge className="w-4 h-4 mx-auto mb-1 text-white/70" />
+                <p className="text-lg font-bold">{speed.toFixed(1)}x</p>
+                <p className="text-[10px] text-white/60 uppercase tracking-wide">Speed</p>
               </div>
             </div>
+
+            {/* Landmark info */}
+            {currentInstruction.landmark && (
+              <div className="p-2.5 rounded-xl bg-[#6633BB]/30 border border-[#6633BB]/40 flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-white/80 shrink-0" />
+                <span className="text-sm">
+                  <span className="text-white/70">Near: </span>
+                  <span className="font-medium">{currentInstruction.landmark}</span>
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
