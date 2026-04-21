@@ -61,11 +61,12 @@ export interface ParkingArea {
 }
 
 // All 39 Campus Buildings + 6 KCEV Halls
+// Building positions adjusted for proper spacing (minimum 8m gap between buildings)
 export const ALL_BUILDINGS: CampusBuilding[] = [
   // === EAST ZONE (near Main Gate) ===
   {
     id: 'b01', number: 1, name: 'Ikaze Gate House', shortName: 'Ikaze Gate',
-    type: 'service', position: { x: 540, y: 245 }, width: 30, height: 25, floors: 1,
+    type: 'service', position: { x: 545, y: 240 }, width: 28, height: 22, floors: 1,
     rooms: [
       { id: 'b01-r01', num: 'GH', name: 'Security Office 1', floor: 1, type: 'office', nodeId: 'b01_f1_r01' },
       { id: 'b01-r02', num: 'C1', name: 'Cantine 1', floor: 1, type: 'facility', capacity: 60, nodeId: 'b01_f1_r02' },
@@ -73,7 +74,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b02', number: 2, name: 'Ikaze Block', shortName: 'Ikaze',
-    type: 'academic', position: { x: 460, y: 260 }, width: 50, height: 38, floors: 3,
+    type: 'academic', position: { x: 475, y: 255 }, width: 48, height: 36, floors: 3,
     rooms: [
       { id: 'b02-r01', num: '101', name: 'UR-CHMS Polyclinic', floor: 1, type: 'office', nodeId: 'b02_f1_r01' },
       { id: 'b02-r02', num: '102', name: 'Classroom A', floor: 1, type: 'lecture', capacity: 60, nodeId: 'b02_f1_r02' },
@@ -85,7 +86,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b03', number: 3, name: 'Female Students Hostels', shortName: 'Female Hostel',
-    type: 'hostel', position: { x: 430, y: 275 }, width: 40, height: 35, floors: 4,
+    type: 'hostel', position: { x: 475, y: 300 }, width: 38, height: 32, floors: 4,
     rooms: [
       { id: 'b03-r01', num: '101', name: 'Dormitory F1-A', floor: 1, type: 'hostel', capacity: 8, nodeId: 'b03_f1_r01' },
       { id: 'b03-r02', num: '102', name: 'Dormitory F1-B', floor: 1, type: 'hostel', capacity: 8, nodeId: 'b03_f1_r02' },
@@ -96,7 +97,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b04', number: 4, name: 'Muhazi Block', shortName: 'Muhazi',
-    type: 'academic', position: { x: 400, y: 265 }, width: 45, height: 35, floors: 2,
+    type: 'academic', position: { x: 415, y: 255 }, width: 44, height: 34, floors: 2,
     rooms: [
       { id: 'b04-r01', num: '101', name: 'Registry Office', floor: 1, type: 'office', nodeId: 'b04_f1_r01' },
       { id: 'b04-r02', num: '102', name: 'School of ICT Offices', floor: 1, type: 'office', nodeId: 'b04_f1_r02' },
@@ -107,7 +108,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b05', number: 5, name: 'Dusaidi Students Hostel', shortName: 'Dusaidi',
-    type: 'hostel', position: { x: 430, y: 250 }, width: 35, height: 28, floors: 3,
+    type: 'hostel', position: { x: 520, y: 300 }, width: 34, height: 26, floors: 3,
     rooms: [
       { id: 'b05-r01', num: '101', name: 'Dormitory M1-A', floor: 1, type: 'hostel', capacity: 8, nodeId: 'b05_f1_r01' },
       { id: 'b05-r02', num: '102', name: 'Dormitory M1-B', floor: 1, type: 'hostel', capacity: 8, nodeId: 'b05_f1_r02' },
@@ -117,14 +118,14 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b06', number: 6, name: 'Security Office 2', shortName: 'Security 2',
-    type: 'service', position: { x: 370, y: 255 }, width: 25, height: 20, floors: 1,
+    type: 'service', position: { x: 378, y: 250 }, width: 22, height: 18, floors: 1,
     rooms: [
       { id: 'b06-r01', num: '01', name: 'Security Post', floor: 1, type: 'office', nodeId: 'b06_f1_r01' },
     ]
   },
   {
     id: 'b07', number: 7, name: 'Administration Block', shortName: 'Admin',
-    type: 'admin', position: { x: 300, y: 260 }, width: 55, height: 42, floors: 3,
+    type: 'admin', position: { x: 310, y: 255 }, width: 52, height: 40, floors: 3,
     rooms: [
       { id: 'b07-r01', num: '101', name: "Principal's Office", floor: 1, type: 'office', nodeId: 'b07_f1_r01' },
       { id: 'b07-r02', num: '102', name: "Campus Administrator's Office", floor: 1, type: 'office', nodeId: 'b07_f1_r02' },
@@ -143,7 +144,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   // === CENTRAL ZONE ===
   {
     id: 'b08', number: 8, name: 'Restaurant', shortName: 'Restaurant',
-    type: 'facility', position: { x: 260, y: 265 }, width: 35, height: 28, floors: 1,
+    type: 'facility', position: { x: 255, y: 255 }, width: 34, height: 26, floors: 1,
     rooms: [
       { id: 'b08-r01', num: '01', name: 'Main Dining Hall', floor: 1, type: 'facility', capacity: 400, nodeId: 'b08_f1_r01' },
       { id: 'b08-r02', num: '02', name: 'Kitchen', floor: 1, type: 'facility', nodeId: 'b08_f1_r02' },
@@ -152,7 +153,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b09', number: 9, name: 'Printing House', shortName: 'Printing',
-    type: 'service', position: { x: 245, y: 258 }, width: 30, height: 22, floors: 1,
+    type: 'service', position: { x: 212, y: 250 }, width: 28, height: 20, floors: 1,
     rooms: [
       { id: 'b09-r01', num: '01', name: 'Print Shop', floor: 1, type: 'office', nodeId: 'b09_f1_r01' },
       { id: 'b09-r02', num: '02', name: 'Design Room', floor: 1, type: 'office', nodeId: 'b09_f1_r02' },
@@ -160,7 +161,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b10', number: 10, name: 'Garage', shortName: 'Garage',
-    type: 'service', position: { x: 240, y: 275 }, width: 30, height: 22, floors: 1,
+    type: 'service', position: { x: 212, y: 278 }, width: 28, height: 20, floors: 1,
     rooms: [
       { id: 'b10-r01', num: '01', name: 'Vehicle Bay A', floor: 1, type: 'facility', nodeId: 'b10_f1_r01' },
       { id: 'b10-r02', num: '02', name: 'Workshop', floor: 1, type: 'facility', nodeId: 'b10_f1_r02' },
@@ -168,7 +169,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b11', number: 11, name: 'Training Workshop', shortName: 'Workshop',
-    type: 'academic', position: { x: 290, y: 275 }, width: 35, height: 28, floors: 2,
+    type: 'academic', position: { x: 310, y: 305 }, width: 34, height: 26, floors: 2,
     rooms: [
       { id: 'b11-r01', num: '101', name: 'Department Office', floor: 1, type: 'office', nodeId: 'b11_f1_r01' },
       { id: 'b11-r02', num: '102', name: 'Training Room A', floor: 1, type: 'lecture', capacity: 40, nodeId: 'b11_f1_r02' },
@@ -177,7 +178,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b12', number: 12, name: 'Ex-Management Office', shortName: 'Ex-Mgmt',
-    type: 'admin', position: { x: 325, y: 275 }, width: 30, height: 22, floors: 1,
+    type: 'admin', position: { x: 355, y: 305 }, width: 28, height: 20, floors: 1,
     rooms: [
       { id: 'b12-r01', num: '01', name: 'Meeting Room', floor: 1, type: 'common', capacity: 20, nodeId: 'b12_f1_r01' },
       { id: 'b12-r02', num: '02', name: 'Admin Office', floor: 1, type: 'office', nodeId: 'b12_f1_r02' },
@@ -185,7 +186,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b13', number: 13, name: 'Public Toilets', shortName: 'WC 1',
-    type: 'facility', position: { x: 355, y: 275 }, width: 20, height: 16, floors: 1,
+    type: 'facility', position: { x: 392, y: 305 }, width: 18, height: 14, floors: 1,
     rooms: [
       { id: 'b13-r01', num: 'M', name: 'Male Toilets', floor: 1, type: 'toilet', nodeId: 'b13_f1_r01' },
       { id: 'b13-r02', num: 'F', name: 'Female Toilets', floor: 1, type: 'toilet', nodeId: 'b13_f1_r02' },
@@ -193,14 +194,14 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b14', number: 14, name: 'Exit Gate House', shortName: 'Exit Gate',
-    type: 'service', position: { x: 280, y: 245 }, width: 25, height: 20, floors: 1,
+    type: 'service', position: { x: 175, y: 245 }, width: 24, height: 18, floors: 1,
     rooms: [
       { id: 'b14-r01', num: '01', name: 'Guard Post', floor: 1, type: 'office', nodeId: 'b14_f1_r01' },
     ]
   },
   {
     id: 'b15', number: 15, name: 'Language Department', shortName: 'Language',
-    type: 'academic', position: { x: 340, y: 285 }, width: 35, height: 28, floors: 2,
+    type: 'academic', position: { x: 420, y: 305 }, width: 34, height: 26, floors: 2,
     rooms: [
       { id: 'b15-r01', num: '101', name: 'Language Lab A', floor: 1, type: 'lab', capacity: 30, nodeId: 'b15_f1_r01' },
       { id: 'b15-r02', num: '102', name: 'Language Lab B', floor: 1, type: 'lab', capacity: 30, nodeId: 'b15_f1_r02' },
@@ -210,7 +211,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b16', number: 16, name: 'School of Engineering', shortName: 'Engineering',
-    type: 'academic', position: { x: 322, y: 290 }, width: 50, height: 42, floors: 4,
+    type: 'academic', position: { x: 420, y: 340 }, width: 48, height: 40, floors: 4,
     rooms: [
       { id: 'b16-r01', num: '101', name: 'Dean Office', floor: 1, type: 'office', nodeId: 'b16_f1_r01' },
       { id: 'b16-r02', num: '102', name: 'Department Office A', floor: 1, type: 'office', nodeId: 'b16_f1_r02' },
@@ -223,7 +224,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b17', number: 17, name: 'Mosque', shortName: 'Mosque',
-    type: 'facility', position: { x: 252, y: 288 }, width: 28, height: 24, floors: 1,
+    type: 'facility', position: { x: 255, y: 295 }, width: 26, height: 22, floors: 1,
     rooms: [
       { id: 'b17-r01', num: '01', name: 'Prayer Hall', floor: 1, type: 'facility', capacity: 200, nodeId: 'b17_f1_r01' },
       { id: 'b17-r02', num: '02', name: 'Ablution Room', floor: 1, type: 'facility', nodeId: 'b17_f1_r02' },
@@ -231,7 +232,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b18', number: 18, name: 'Agaciro Block', shortName: 'Agaciro',
-    type: 'academic', position: { x: 208, y: 300 }, width: 55, height: 45, floors: 3,
+    type: 'academic', position: { x: 175, y: 310 }, width: 52, height: 42, floors: 3,
     rooms: [
       { id: 'b18-r01', num: '101', name: 'ACE in IoT Offices', floor: 1, type: 'office', nodeId: 'b18_f1_r01' },
       { id: 'b18-r02', num: '102', name: 'Lecture Hall A', floor: 1, type: 'lecture', capacity: 120, nodeId: 'b18_f1_r02' },
@@ -247,7 +248,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b19', number: 19, name: 'Einstein Block', shortName: 'Einstein',
-    type: 'academic', position: { x: 190, y: 315 }, width: 50, height: 40, floors: 3,
+    type: 'academic', position: { x: 120, y: 310 }, width: 46, height: 38, floors: 3,
     rooms: [
       { id: 'b19-r01', num: '101', name: 'Dean of Mining Office', floor: 1, type: 'office', nodeId: 'b19_f1_r01' },
       { id: 'b19-r02', num: '102', name: 'Lecture Hall A', floor: 1, type: 'lecture', capacity: 100, nodeId: 'b19_f1_r02' },
@@ -261,7 +262,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b20', number: 20, name: 'Asset & Service Management', shortName: 'Asset Mgmt',
-    type: 'admin', position: { x: 230, y: 335 }, width: 35, height: 25, floors: 1,
+    type: 'admin', position: { x: 240, y: 330 }, width: 32, height: 24, floors: 1,
     rooms: [
       { id: 'b20-r01', num: '01', name: 'Main Office', floor: 1, type: 'office', nodeId: 'b20_f1_r01' },
       { id: 'b20-r02', num: '02', name: 'Records Room', floor: 1, type: 'office', nodeId: 'b20_f1_r02' },
@@ -269,7 +270,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b21', number: 21, name: 'URSU Office', shortName: 'URSU',
-    type: 'service', position: { x: 245, y: 355 }, width: 30, height: 22, floors: 1,
+    type: 'service', position: { x: 285, y: 330 }, width: 28, height: 20, floors: 1,
     rooms: [
       { id: 'b21-r01', num: '01', name: 'URSU Main Office', floor: 1, type: 'office', nodeId: 'b21_f1_r01' },
       { id: 'b21-r02', num: '02', name: 'Student Meeting Room', floor: 1, type: 'common', capacity: 20, nodeId: 'b21_f1_r02' },
@@ -277,7 +278,7 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b22', number: 22, name: 'African Virtual University', shortName: 'AVU',
-    type: 'academic', position: { x: 262, y: 360 }, width: 35, height: 28, floors: 2,
+    type: 'academic', position: { x: 325, y: 340 }, width: 34, height: 26, floors: 2,
     rooms: [
       { id: 'b22-r01', num: '101', name: 'AVU Office', floor: 1, type: 'office', nodeId: 'b22_f1_r01' },
       { id: 'b22-r02', num: '102', name: 'E-Learning Lab', floor: 1, type: 'lab', capacity: 30, nodeId: 'b22_f1_r02' },
@@ -286,14 +287,14 @@ export const ALL_BUILDINGS: CampusBuilding[] = [
   },
   {
     id: 'b23', number: 23, name: 'Belgian Memorial Site', shortName: 'Memorial',
-    type: 'facility', position: { x: 282, y: 370 }, width: 30, height: 25, floors: 1,
+    type: 'facility', position: { x: 370, y: 340 }, width: 28, height: 24, floors: 1,
     rooms: [
       { id: 'b23-r01', num: '01', name: 'Memorial Hall', floor: 1, type: 'facility', capacity: 100, nodeId: 'b23_f1_r01' },
     ]
   },
   {
     id: 'b24', number: 24, name: 'Library', shortName: 'Library',
-    type: 'academic', position: { x: 230, y: 390 }, width: 55, height: 45, floors: 3,
+    type: 'academic', position: { x: 240, y: 365 }, width: 52, height: 42, floors: 3,
     rooms: [
       { id: 'b24-r01', num: '101', name: 'Main Reading Hall', floor: 1, type: 'common', capacity: 200, nodeId: 'b24_f1_r01' },
       { id: 'b24-r02', num: '102', name: 'Periodicals Section', floor: 1, type: 'common', nodeId: 'b24_f1_r02' },

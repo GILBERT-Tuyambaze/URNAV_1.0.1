@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, Play, MapPin } from "lucide-react";
+import { Menu, Play, MapPin, X, Info, Settings, HelpCircle, Map, Navigation, Building2, Layers, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampusMapSVG } from "@/components/urnav/campus-map-svg";
 import { MapControls } from "@/components/urnav/map-controls";
 import { FloorSwitcher } from "@/components/urnav/floor-switcher";
 import { demoController, type DemoState } from "@/lib/demo-controller";
-import { GATES, type CampusBuilding, type CampusRoom } from "@/lib/campus-data";
+import { GATES, type CampusBuilding, type CampusRoom, DEMO_ROUTES } from "@/lib/campus-data";
 import { fitCampus, type ViewState } from "@/lib/map-transform";
 
 interface HomeScreenProps {
@@ -44,6 +44,10 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
   const [showKalmanDot, setShowKalmanDot] = useState(false);
   const [showPathNodes, setShowPathNodes] = useState(false);
   const [showPathEdges, setShowPathEdges] = useState(false);
+
+  // Menu state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
 
   // View state for map
   const [view, setView] = useState<ViewState>(() => ({
@@ -282,18 +286,158 @@ export function HomeScreen({ onSearchFocus, onBuildingSelect }: HomeScreenProps)
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg shrink-0 shadow-md"
+          onClick={() => setMenuOpen(true)}
+          className="h-11 w-11 bg-[#0066CC] text-white hover:bg-[#004499] rounded-xl shrink-0 shadow-lg"
         >
           <Menu className="h-5 w-5" />
         </Button>
         <button
           onClick={onSearchFocus}
-          className="flex-1 h-11 bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 text-left shadow-md flex items-center gap-2"
+          className="flex-1 h-11 bg-white/98 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 text-left shadow-lg flex items-center gap-2"
         >
-          <MapPin className="w-4 h-4 text-slate-400" />
+          <MapPin className="w-4 h-4 text-[#0066CC]" />
           <span className="text-slate-500 text-sm">Search rooms, buildings...</span>
         </button>
       </div>
+
+      {/* Side Menu */}
+      {menuOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/40 z-40 animate-in fade-in duration-200"
+            onClick={() => setMenuOpen(false)}
+          />
+          
+          {/* Menu Panel */}
+          <div className="fixed top-0 left-0 bottom-0 w-72 bg-white z-50 shadow-2xl animate-in slide-in-from-left duration-300">
+            {/* Menu Header */}
+            <div className="bg-gradient-to-r from-[#0066CC] to-[#004499] text-white p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Navigation className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-lg">URNAV</h2>
+                    <p className="text-xs text-white/70">Campus Navigation</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMenuOpen(false)}
+                  className="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-white/80">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span>Live Location Active</span>
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="p-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 mb-2">Navigation</p>
+              
+              <button 
+                onClick={() => { setMenuOpen(false); onSearchFocus(); }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[#E8F3FF] transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-lg bg-[#E8F3FF] flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-[#0066CC]" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Find Location</p>
+                  <p className="text-xs text-slate-500">Search buildings & rooms</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => { setMenuOpen(false); handleStartDemo(); }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[#EEE8FF] transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-lg bg-[#EEE8FF] flex items-center justify-center">
+                  <Play className="w-4 h-4 text-[#6633BB]" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Demo Mode</p>
+                  <p className="text-xs text-slate-500">See navigation in action</p>
+                </div>
+              </button>
+
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 mb-2 mt-4">Settings</p>
+
+              <button 
+                onClick={() => setVoiceEnabled(!voiceEnabled)}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-100 transition-colors text-left"
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${voiceEnabled ? 'bg-[#E8F3FF]' : 'bg-red-50'}`}>
+                  {voiceEnabled ? (
+                    <Volume2 className="w-4 h-4 text-[#0066CC]" />
+                  ) : (
+                    <VolumeX className="w-4 h-4 text-red-500" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-slate-800">Voice Guidance</p>
+                  <p className="text-xs text-slate-500">{voiceEnabled ? 'Enabled' : 'Disabled'}</p>
+                </div>
+                <div className={`w-10 h-6 rounded-full transition-colors ${voiceEnabled ? 'bg-[#0066CC]' : 'bg-slate-300'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm mt-0.5 transition-transform ${voiceEnabled ? 'translate-x-4.5 ml-0.5' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+
+              <button 
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-100 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <Layers className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Map Layers</p>
+                  <p className="text-xs text-slate-500">Customize map display</p>
+                </div>
+              </button>
+
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 mb-2 mt-4">Information</p>
+
+              <button 
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-100 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Campus Info</p>
+                  <p className="text-xs text-slate-500">39 buildings, 200+ rooms</p>
+                </div>
+              </button>
+
+              <button 
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-100 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <HelpCircle className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Help & Tutorial</p>
+                  <p className="text-xs text-slate-500">How to use URNAV</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Footer */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
+              <p className="text-center text-xs text-slate-400">
+                URNAV v1.0 - UR Nyarugenge Campus
+              </p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Map Container - Full screen */}
       <div ref={containerRef} className="flex-1 relative min-h-0">

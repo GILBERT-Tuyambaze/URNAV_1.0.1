@@ -293,4 +293,82 @@ The repository now contains **two** first-class app roots:
 
 ---
 
+---
+
+## 10. Indoor Navigation Implementation
+
+### 10.1 Indoor Seed Data
+- [x] 10.1.1  Indoor graph generated for all 39 campus buildings
+- [x] 10.1.2  Every building has: entry node, corridor spine, room nodes, stair nodes, lift nodes (where applicable)
+- [x] 10.1.3  All indoor edges connect to outdoor path network via b{id}_f1_entry nodes
+- [x] 10.1.4  Multi-floor buildings have stair edges (weight 25) and lift edges (weight 20) between floors
+- [x] 10.1.5  Every room in ALL_BUILDINGS has a matching graph node with campusX, campusY, localX, localY
+- [ ] 10.1.6  Seed data tested: A* can route from gate_main to every room in Admin Block
+- [ ] 10.1.7  Seed data tested: A* can route from gate_main to every room in Library
+
+### 10.2 Indoor A* Routing
+- [x] 10.2.1  computeRoute() handles full path: outdoor nodes -> building entry -> indoor corridor -> destination room
+- [x] 10.2.2  Route correctly uses stair edges when destination is on a different floor
+- [x] 10.2.3  Route prefers lift over stairs when preferLift=true option is set
+- [x] 10.2.4  Cross-building routing works: gate -> outdoor path -> building A entry -> indoor A -> outdoor -> building B entry -> indoor B -> room
+- [x] 10.2.5  findNearestNode() works for indoor positions (scoped to correct building + floor)
+- [x] 10.2.6  getSegmentType() correctly classifies: walk, stairs, lift, outdoor, building-enter, building-exit
+
+### 10.3 Building Selection UI
+- [x] 10.3.1  Campus map shows all buildings as tappable tiles
+- [x] 10.3.2  Tapping a building opens BuildingSheet (bottom sheet) showing building name, floor tabs, room list
+- [x] 10.3.3  Floor tabs in BuildingSheet filter room list by floor
+- [x] 10.3.4  Each room row shows: type icon, name, number, floor
+- [x] 10.3.5  Tapping a room row opens RoomDetailSheet with Navigate button
+- [x] 10.3.6  Search results include room name, building name, floor - tapping navigates directly
+- [x] 10.3.7  "Navigate here" from RoomDetailSheet triggers full route computation and starts NavigatingScreen
+
+### 10.4 Indoor Floor Plan Rendering
+- [x] 10.4.1  FloorMap renders building boundary rect in building type color
+- [x] 10.4.2  Corridor strips rendered as thick light-grey lines between connected indoor nodes
+- [x] 10.4.3  Room tiles rendered as colored rects by room type (lab=blue, office=green, lecture=purple, etc.)
+- [x] 10.4.4  Room labels visible when zoom scale > 2.5
+- [x] 10.4.5  Staircase nodes rendered as rounded rect with dashed amber border and tread lines
+- [x] 10.4.6  Lift nodes rendered as rounded rect with dashed blue border and arrows
+- [x] 10.4.7  Floor switcher shows correct floor buttons for selected building
+- [x] 10.4.8  Floor plan cross-fades (180ms) when currentFloor changes
+- [x] 10.4.9  Only nodes on currentFloor are rendered (filter by node.floor === currentFloor)
+
+### 10.5 Indoor Route Rendering
+- [x] 10.5.1  Route polyline drawn on floor plan for indoor segments on currentFloor
+- [x] 10.5.2  Three-layer route line: white shadow (width 8) + blue fill (width 5) + white marching ants
+- [x] 10.5.3  Passed segments shown in grey (#8899BB, width 4)
+- [x] 10.5.4  Marching ants animation on current active segment only (dashOffset animated 0->-18, 400ms loop)
+- [x] 10.5.5  Destination room has pulsing pin (r 10->18, color #CC2200, period 1400ms)
+- [x] 10.5.6  Start pin shown at route origin (white circle + blue dot)
+- [ ] 10.5.7  Floor-change waypoints show stair/lift icon overlay on route at that node position
+
+### 10.6 Indoor Turn-by-Turn Instructions
+- [x] 10.6.1  generateInstructions() handles all indoor segment types
+- [x] 10.6.2  Indoor turn angles computed correctly from node heading changes
+- [x] 10.6.3  Stair instruction: "Walk {n} m, then take the stairs up/down to Floor {f}"
+- [x] 10.6.4  Lift instruction: "Walk {n} m, then take the elevator to Floor {f}"
+- [x] 10.6.5  Building entry instruction: "Enter {Building Name} through the main entrance"
+- [x] 10.6.6  Arrival instruction: "You have arrived at {Room Name} - Floor {f}, {Building}"
+- [ ] 10.6.7  TTS reads each instruction aloud when it changes
+- [ ] 10.6.8  Waypoint advances when user within WAYPOINT_ARRIVAL_RADIUS_M (3 m) of next node
+- [ ] 10.6.9  ArrivalScreen triggered when within DESTINATION_ARRIVAL_RADIUS_M (5 m) of dest node
+
+### 10.7 Demo Indoor Walk
+- [x] 10.7.1  Demo mode has 5 pre-defined indoor routes
+- [x] 10.7.2  Demo walker follows graph edges exactly (no free-form interpolation)
+- [x] 10.7.3  Demo auto-switches currentFloor when route crosses a stair/lift edge
+- [x] 10.7.4  Demo auto-switches to building view when route enters a building
+- [ ] 10.7.5  Demo speed is user-controllable (0.5x to 5x) via hidden long-press gesture
+- [ ] 10.7.6  Position trail shown for last 80 positions in demo mode
+
+### 10.8 Integration Tests
+- [ ] 10.8.1  Unit test: A* from gate_main to b07_f1_r01 (Admin Block Room 101) returns valid path
+- [ ] 10.8.2  Unit test: A* from gate_main to b24_f2_r05 (Library Floor 2) returns path crossing stair edge
+- [ ] 10.8.3  Unit test: generateInstructions on a multi-floor route includes a stair instruction
+- [ ] 10.8.4  Unit test: generateInstructions on a cross-building route includes building-enter instruction
+- [ ] 10.8.5  Integration test: SearchScreen "Computer Lab A" finds b18_r04 and tapping navigates correctly
+
+---
+
 *Checklist generated to mirror the structure of **URNAV_Project_Documentation** (v1.0). Update statuses as features land.*

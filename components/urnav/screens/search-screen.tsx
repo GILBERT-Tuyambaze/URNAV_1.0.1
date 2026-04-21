@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ArrowLeft, Clock, Star, Building2, MapPin, Navigation, FlaskConical, Users, BookOpen, DoorOpen } from "lucide-react";
+import { ArrowLeft, Clock, Star, Building2, MapPin, Navigation, FlaskConical, Users, BookOpen, DoorOpen, Layers, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ALL_BUILDINGS, getBuildingColors, getRoomColors, type CampusBuilding, type CampusRoom } from "@/lib/campus-data";
 
@@ -11,13 +11,7 @@ interface SearchScreenProps {
   onRoomSelect?: (room: CampusRoom, building: CampusBuilding) => void;
 }
 
-// Unified search result type
-interface SearchResult {
-  type: 'building' | 'room';
-  building: CampusBuilding;
-  room?: CampusRoom;
-  matchScore: number;
-}
+type ViewMode = 'search' | 'building-rooms';
 
 // Get room type icon
 function getRoomIcon(type: string) {
@@ -28,6 +22,14 @@ function getRoomIcon(type: string) {
     case 'common': return <Users className="w-3.5 h-3.5" />;
     default: return <MapPin className="w-3.5 h-3.5" />;
   }
+}
+
+// Unified search result type
+interface SearchResult {
+  type: 'building' | 'room';
+  building: CampusBuilding;
+  room?: CampusRoom;
+  matchScore: number;
 }
 
 // Search buildings and rooms
@@ -75,20 +77,12 @@ function searchAll(query: string): SearchResult[] {
   return results.sort((a, b) => b.matchScore - a.matchScore);
 }
 
-// Get all rooms flattened
-function getAllRooms(): { room: CampusRoom; building: CampusBuilding }[] {
-  const rooms: { room: CampusRoom; building: CampusBuilding }[] = [];
-  for (const building of ALL_BUILDINGS) {
-    for (const room of building.rooms) {
-      rooms.push({ room, building });
-    }
-  }
-  return rooms;
-}
-
 export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchScreenProps) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<'all' | 'buildings' | 'rooms'>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('search');
+  const [selectedBuilding, setSelectedBuilding] = useState<CampusBuilding | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -103,25 +97,44 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
     return allResults;
   }, [query, activeTab]);
 
-  const recentSearches = ALL_BUILDINGS.slice(0, 3);
-  const popularRooms = useMemo(() => {
-    const allRooms = getAllRooms();
-    // Pick some popular rooms
-    return allRooms.filter(({ room }) => 
-      room.type === 'lab' || room.name.includes('Dean') || room.name.includes('Library')
-    ).slice(0, 4);
-  }, []);
+  // Get floors for selected building
+  const buildingFloors = useMemo(() => {
+    if (!selectedBuilding) return [];
+    const floors = new Set<number>();
+    selectedBuilding.rooms.forEach(r => floors.add(r.floor));
+    return Array.from(floors).sort((a, b) => a - b);
+  }, [selectedBuilding]);
+
+  // Get rooms for selected floor
+  const floorRooms = useMemo(() => {
+    if (!selectedBuilding) return [];
+    if (selectedFloor === null) return selectedBuilding.rooms;
+    return selectedBuilding.rooms.filter(r => r.floor === selectedFloor);
+  }, [selectedBuilding, selectedFloor]);
 
   const popularBuildings = ALL_BUILDINGS.filter((b) =>
     ["b24", "b07", "b16", "b19", "b18"].includes(b.id)
   );
 
-  const handleResultClick = (result: SearchResult) => {
-    if (result.type === 'room' && result.room && onRoomSelect) {
-      onRoomSelect(result.room, result.building);
-    } else {
-      onBuildingSelect(result.building);
+  // Handle building tap - show rooms view
+  const handleBuildingTap = (building: CampusBuilding) => {
+    setSelectedBuilding(building);
+    setSelectedFloor(null);
+    setViewMode('building-rooms');
+  };
+
+  // Handle room selection
+  const handleRoomTap = (room: CampusRoom) => {
+    if (selectedBuilding && onRoomSelect) {
+      onRoomSelect(room, selectedBuilding);
     }
+  };
+
+  // Handle back from building rooms view
+  const handleBackFromRooms = () => {
+    setSelectedBuilding(null);
+    setSelectedFloor(null);
+    setViewMode('search');
   };
 
   // Count results by type
@@ -129,6 +142,112 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
   const buildingResultsCount = useMemo(() => searchAll(query).filter(r => r.type === 'building').length, [query]);
   const roomResultsCount = useMemo(() => searchAll(query).filter(r => r.type === 'room').length, [query]);
 
+  // Building Rooms View
+  if (viewMode === 'building-rooms' && selectedBuilding) {
+    const colors = getBuildingColors(selectedBuilding.type);
+    
+    return (
+      <div className="h-full flex flex-col bg-[#F5F8FC]">
+        {/* Header */}
+        <header className="bg-white border-b border-[#D0E4F7] shrink-0">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBackFromRooms}
+              className="h-10 w-10 shrink-0 bg-[#0066CC] text-white hover:bg-[#004499] rounded-lg"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-lg font-semibold text-[#002255] truncate">{selectedBuilding.name}</h1>
+              <p className="text-xs text-[#4466AA]">{selectedBuilding.rooms.length} rooms - {selectedBuilding.floors} floors</p>
+            </div>
+          </div>
+
+          {/* Floor tabs */}
+          {buildingFloors.length > 1 && (
+            <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
+              <button
+                onClick={() => setSelectedFloor(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  selectedFloor === null
+                    ? 'bg-[#0066CC] text-white'
+                    : 'bg-[#E8F3FF] text-[#0066CC]'
+                }`}
+              >
+                All Floors
+              </button>
+              {buildingFloors.map((floor) => (
+                <button
+                  key={floor}
+                  onClick={() => setSelectedFloor(floor)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                    selectedFloor === floor
+                      ? 'bg-[#0066CC] text-white'
+                      : 'bg-[#E8F3FF] text-[#0066CC]'
+                  }`}
+                >
+                  Floor {floor}
+                </button>
+              ))}
+            </div>
+          )}
+        </header>
+
+        {/* Room list */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <p className="text-sm text-[#4466AA] mb-3">
+            Select a room to navigate to
+          </p>
+          
+          <div className="space-y-2">
+            {floorRooms.map((room) => {
+              const roomColors = getRoomColors(room.type);
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => handleRoomTap(room)}
+                  className="w-full bg-white border border-[#D0E4F7] rounded-xl p-4 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 border"
+                      style={{ backgroundColor: roomColors.fill, borderColor: roomColors.stroke }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs font-bold" style={{ color: roomColors.stroke }}>{room.num}</span>
+                        <span style={{ color: roomColors.stroke }}>{getRoomIcon(room.type)}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#002255] truncate">{room.name}</p>
+                      <div className="flex items-center gap-2 mt-1 text-sm text-[#4466AA]">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3 h-3" />
+                          Floor {room.floor}
+                        </span>
+                        <span className="capitalize text-[#8899BB]">{room.type}</span>
+                        {room.capacity && (
+                          <span className="flex items-center gap-1 text-[#8899BB]">
+                            <Users className="w-3 h-3" />
+                            {room.capacity}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Navigation className="w-5 h-5 text-[#0066CC] shrink-0" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Search View
   return (
     <div className="h-full flex flex-col bg-[#F5F8FC]">
       {/* Header with search */}
@@ -143,13 +262,14 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8899BB]" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search buildings, rooms, labs..."
               autoFocus
-              className="w-full h-12 bg-white border-2 border-[#0066CC] rounded-xl px-4 text-[#002255] placeholder:text-[#8899BB] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+              className="w-full h-12 bg-white border-2 border-[#0066CC] rounded-xl pl-10 pr-4 text-[#002255] placeholder:text-[#8899BB] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
             />
           </div>
         </div>
@@ -200,13 +320,13 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
               {results.length} {results.length === 1 ? "result" : "results"} found
             </p>
             <div className="space-y-2">
-              {results.map((result, index) => {
+              {results.map((result) => {
                 if (result.type === 'building') {
                   const colors = getBuildingColors(result.building.type);
                   return (
                     <button
                       key={`building-${result.building.id}`}
-                      onClick={() => handleResultClick(result)}
+                      onClick={() => handleBuildingTap(result.building)}
                       className="w-full bg-white border border-[#D0E4F7] rounded-xl p-4 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
                     >
                       <div className="flex items-center gap-4">
@@ -223,11 +343,10 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                               <Building2 className="w-3 h-3" />
                               {result.building.floors} floors
                             </span>
-                            <span className="capitalize">{result.building.type}</span>
                             <span className="text-[#8899BB]">{result.building.rooms.length} rooms</span>
                           </div>
                         </div>
-                        <Navigation className="w-5 h-5 text-[#0066CC] shrink-0" />
+                        <ChevronRight className="w-5 h-5 text-[#0066CC] shrink-0" />
                       </div>
                     </button>
                   );
@@ -237,7 +356,11 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                   return (
                     <button
                       key={`room-${result.building.id}-${result.room.id}`}
-                      onClick={() => handleResultClick(result)}
+                      onClick={() => {
+                        if (onRoomSelect) {
+                          onRoomSelect(result.room!, result.building);
+                        }
+                      }}
                       className="w-full bg-white border border-[#D0E4F7] rounded-xl p-4 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
                     >
                       <div className="flex items-center gap-4">
@@ -263,7 +386,6 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                               <MapPin className="w-3 h-3" />
                               Floor {result.room.floor}
                             </span>
-                            <span className="capitalize text-[#8899BB]">{result.room.type}</span>
                           </div>
                         </div>
                         <Navigation className="w-5 h-5 text-[#0066CC] shrink-0" />
@@ -283,83 +405,16 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
             </div>
           </div>
         ) : (
-          // Default state with suggestions
+          // Default state with building selection
           <div className="p-4 space-y-6">
-            {/* Recent Searches */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-[#4466AA]" />
-                <h2 className="text-sm font-medium text-[#4466AA]">Recent</h2>
-              </div>
-              <div className="space-y-2">
-                {recentSearches.map((building) => {
-                  const colors = getBuildingColors(building.type);
-                  return (
-                    <button
-                      key={building.id}
-                      onClick={() => onBuildingSelect(building)}
-                      className="w-full bg-white border border-[#D0E4F7] rounded-xl p-3 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border"
-                          style={{ backgroundColor: colors.fill, borderColor: colors.stroke }}
-                        >
-                          <span className="text-sm font-semibold" style={{ color: colors.stroke }}>{building.number}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-[#002255] truncate text-sm">{building.name}</p>
-                          <p className="text-xs text-[#8899BB]">{building.floors} floors</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Popular Rooms */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <DoorOpen className="w-4 h-4 text-[#4466AA]" />
-                <h2 className="text-sm font-medium text-[#4466AA]">Popular Rooms</h2>
-              </div>
-              <div className="space-y-2">
-                {popularRooms.map(({ room, building }) => {
-                  const buildingColors = getBuildingColors(building.type);
-                  const roomColors = getRoomColors(room.type);
-                  return (
-                    <button
-                      key={`${building.id}-${room.id}`}
-                      onClick={() => onRoomSelect ? onRoomSelect(room, building) : onBuildingSelect(building)}
-                      className="w-full bg-white border border-[#D0E4F7] rounded-xl p-3 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border"
-                          style={{ backgroundColor: roomColors.fill, borderColor: roomColors.stroke }}
-                        >
-                          <span style={{ color: roomColors.stroke }}>{getRoomIcon(room.type)}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-[#002255] truncate text-sm">{room.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-[#8899BB]">
-                            <span 
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                              style={{ backgroundColor: buildingColors.fill, color: buildingColors.stroke }}
-                            >
-                              {building.shortName}
-                            </span>
-                            <span>Floor {room.floor}</span>
-                            <span>Room {room.num}</span>
-                          </div>
-                        </div>
-                        <Navigation className="w-4 h-4 text-[#0066CC] shrink-0" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+            {/* How it works */}
+            <section className="bg-[#E8F3FF] rounded-xl p-4">
+              <h2 className="text-sm font-semibold text-[#0066CC] mb-2">How Indoor Navigation Works</h2>
+              <ol className="text-xs text-[#4466AA] space-y-1">
+                <li>1. Select a building below or search for one</li>
+                <li>2. Choose the specific room you want to navigate to</li>
+                <li>3. Get turn-by-turn directions inside the building</li>
+              </ol>
             </section>
 
             {/* Popular Buildings */}
@@ -374,7 +429,50 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                   return (
                     <button
                       key={building.id}
-                      onClick={() => onBuildingSelect(building)}
+                      onClick={() => handleBuildingTap(building)}
+                      className="w-full bg-white border border-[#D0E4F7] rounded-xl p-4 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 border-2"
+                          style={{ backgroundColor: colors.fill, borderColor: colors.stroke }}
+                        >
+                          <span className="text-lg font-bold" style={{ color: colors.stroke }}>{building.number}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-[#002255] truncate">{building.name}</p>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-[#4466AA]">
+                            <span className="flex items-center gap-1">
+                              <Layers className="w-3 h-3" />
+                              {building.floors} floors
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <DoorOpen className="w-3 h-3" />
+                              {building.rooms.length} rooms
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-[#0066CC] shrink-0" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* All Buildings */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-4 h-4 text-[#4466AA]" />
+                <h2 className="text-sm font-medium text-[#4466AA]">All Buildings ({ALL_BUILDINGS.length})</h2>
+              </div>
+              <div className="space-y-2">
+                {ALL_BUILDINGS.filter(b => !popularBuildings.includes(b)).slice(0, 10).map((building) => {
+                  const colors = getBuildingColors(building.type);
+                  return (
+                    <button
+                      key={building.id}
+                      onClick={() => handleBuildingTap(building)}
                       className="w-full bg-white border border-[#D0E4F7] rounded-xl p-3 text-left hover:border-[#0066CC] hover:shadow-sm transition-all"
                     >
                       <div className="flex items-center gap-3">
@@ -386,38 +484,11 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-[#002255] truncate text-sm">{building.name}</p>
-                          <p className="text-xs text-[#4466AA] capitalize">{building.type}</p>
+                          <p className="text-xs text-[#8899BB]">{building.rooms.length} rooms</p>
                         </div>
-                        <Navigation className="w-4 h-4 text-[#0066CC] shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-[#8899BB] shrink-0" />
                       </div>
                     </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Browse by Type */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className="w-4 h-4 text-[#4466AA]" />
-                <h2 className="text-sm font-medium text-[#4466AA]">Browse by Type</h2>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {(["academic", "admin", "hostel", "facility", "service", "conference"] as const).map((type) => {
-                  const colors = getBuildingColors(type);
-                  return (
-                    <Button
-                      key={type}
-                      variant="outline"
-                      onClick={() => setQuery(type)}
-                      className="h-14 flex flex-col items-center justify-center bg-white border-[#D0E4F7] hover:border-[#0066CC] hover:bg-[#E8F3FF]"
-                      style={{ borderLeftColor: colors.stroke, borderLeftWidth: 3 }}
-                    >
-                      <span className="text-xs font-medium text-[#002255] capitalize">{type}</span>
-                      <span className="text-[10px] text-[#8899BB]">
-                        {ALL_BUILDINGS.filter((b) => b.type === type).length}
-                      </span>
-                    </Button>
                   );
                 })}
               </div>
@@ -431,14 +502,16 @@ export function SearchScreen({ onBack, onBuildingSelect, onRoomSelect }: SearchS
                   <p className="text-xs text-[#4466AA]">Buildings</p>
                 </div>
                 <div className="bg-[#DCF0E8] rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-[#00883A]">{getAllRooms().length}</p>
+                  <p className="text-xl font-bold text-[#00883A]">
+                    {ALL_BUILDINGS.reduce((acc, b) => acc + b.rooms.length, 0)}
+                  </p>
                   <p className="text-xs text-[#00883A]">Rooms</p>
                 </div>
                 <div className="bg-[#EEE8FF] rounded-xl p-3 text-center">
                   <p className="text-xl font-bold text-[#6633BB]">
                     {ALL_BUILDINGS.reduce((acc, b) => acc + b.floors, 0)}
                   </p>
-                  <p className="text-xs text-[#6633BB]">Floors</p>
+                  <p className="text-xs text-[#6633BB]">Total Floors</p>
                 </div>
               </div>
             </section>

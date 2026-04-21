@@ -6,9 +6,10 @@ import { HomeScreen } from "@/components/urnav/screens/home-screen";
 import { SearchScreen } from "@/components/urnav/screens/search-screen";
 import { NavigatingScreen } from "@/components/urnav/screens/navigating-screen";
 import { ArrivalScreen } from "@/components/urnav/screens/arrival-screen";
+import { IndoorNavigationScreen } from "@/components/urnav/indoor-navigation-screen";
 import { ALL_BUILDINGS, type CampusBuilding, type CampusRoom } from "@/lib/campus-data";
 
-type Screen = "splash" | "home" | "search" | "navigating" | "arrival";
+type Screen = "splash" | "home" | "search" | "navigating" | "indoor-navigating" | "arrival";
 
 export function URNAVApp() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("splash");
@@ -27,12 +28,14 @@ export function URNAVApp() {
     setCurrentScreen("home");
   }, []);
 
+  // Building select from home - goes to outdoor navigation
   const handleBuildingSelect = useCallback((building: CampusBuilding) => {
     setSelectedBuilding(building);
     setSelectedRoom(null);
     setCurrentScreen("navigating");
   }, []);
 
+  // Room select from search - goes to outdoor navigation first, then indoor
   const handleRoomSelect = useCallback((room: CampusRoom, building: CampusBuilding) => {
     setSelectedBuilding(building);
     setSelectedRoom(room);
@@ -41,11 +44,31 @@ export function URNAVApp() {
 
   const handleNavigationCancel = useCallback(() => {
     setSelectedBuilding(null);
+    setSelectedRoom(null);
     setCurrentScreen("home");
   }, []);
 
-  const handleArrival = useCallback(() => {
+  // Called when outdoor navigation reaches building
+  const handleBuildingArrival = useCallback(() => {
+    // If we have a room destination, switch to indoor navigation
+    if (selectedRoom && selectedBuilding) {
+      setCurrentScreen("indoor-navigating");
+    } else {
+      // No room - just building destination, show arrival
+      setCurrentScreen("arrival");
+    }
+  }, [selectedRoom, selectedBuilding]);
+
+  // Called when indoor navigation reaches room
+  const handleRoomArrival = useCallback(() => {
     setCurrentScreen("arrival");
+  }, []);
+
+  const handleIndoorBack = useCallback(() => {
+    // Go back to navigating screen or home
+    setCurrentScreen("home");
+    setSelectedBuilding(null);
+    setSelectedRoom(null);
   }, []);
 
   const handleGoHome = useCallback(() => {
@@ -107,15 +130,23 @@ export function URNAVApp() {
               destinationBuildingId={selectedBuilding.id}
               destinationRoomId={selectedRoom?.id}
               onCancel={handleNavigationCancel}
-              onArrival={handleArrival}
+              onArrival={handleBuildingArrival}
             />
           )}
 
-          {currentScreen === "arrival" && selectedBuilding && (
+          {currentScreen === "indoor-navigating" && selectedBuilding && selectedRoom && (
+            <IndoorNavigationScreen
+              building={selectedBuilding}
+              room={selectedRoom}
+              onBack={handleIndoorBack}
+              onArrival={handleRoomArrival}
+            />
+          )}
+
+          {currentScreen === "arrival" && (
             <ArrivalScreen
-              destinationName={selectedRoom ? selectedRoom.name : selectedBuilding.name}
-              destinationFloor={selectedRoom ? selectedRoom.floor : 1}
-              buildingName={selectedBuilding.shortName}
+              buildingName={selectedBuilding?.name}
+              roomName={selectedRoom?.name}
               onGoHome={handleGoHome}
               onSearchAnother={handleSearchAnother}
             />
